@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <title>BloodRooster</title>
+        <link href="{{ url_for('static', filename='css/bootstrap.min.css') }}" rel="stylesheet">
+        <link href="{{ url_for('static', filename='css/dashboard.css') }}" rel="stylesheet">
+        <script src="{{ url_for('static', filename='js/jquery-3.5.1.min.js') }}"></script>
+        <script src="{{ url_for('static', filename='js/popper.min.js') }}"></script>
+        <script src="{{ url_for('static', filename='js/bootstrap.min.js') }}"></script>
+        <script src="{{ url_for('static', filename='js/socket.io.js') }}"></script>
+        <script src="{{ url_for('static', filename='js/vis-network.min.js') }}"></script>
+        <script src="{{ url_for('static', filename='js/alea.js') }}"></script>
+        <script src="{{ url_for('static', filename='js/vis-utils.js') }}"></script>
+
+        <style type="text/css">
+            body {
+                color: #d3d3d3;
+                font: 12pt arial;
+                background-color: #222222;
+            }
+
+            #mynetwork {
+                float: left;
+                min-width: 800px;
+                min-height: 700px;
+                margin: 5px;
+                border: 1px solid lightgray;
+            }
+
+            #config {
+                float: left;
+                width: 400px;
+                height: 600px;
+              }
+
+            button {
+                background: none!important;
+                border: none;
+                padding: 0!important;
+                /*optional*/
+                color: lightgray;
+                //font-family: arial, sans-serif;
+                cursor: pointer;
+            }
+        </style>
+
+        <script type="text/javascript">
+          //var nodes = null;
+          //var edges = null;
+          //var network = null;
+
+          function draw(jsonstr='') {
+            var computer_path = "static/images/computer.png";
+            var user_path = "static/images/user.png";
+            var group_path = "static/images/group.png";
+            var unknown_path = "static/images/unknown.png";
+
+            nodes = [];
+            edges = [];
+
+            node_font = { size: 12, color: "white", face: "arial" }
+            edge_font = { size: 12, color: "white", face: "arial" }
+
+            jsonobj = JSON.parse(jsonstr);
+            if (jsonobj != null) {
+                // translate nodes json into vis compatible format
+                Object.entries(jsonobj.nodes).forEach((entry) => {
+                    const [key, value] = entry;
+                    id = value.id;
+                    label = value.name;
+                    switch(value.type) {
+                        case "computer":
+                            image = computer_path;
+                            break;
+                        case "user":
+                            image = user_path;
+                            break;
+                        case "group":
+                            image = group_path;
+                            break;
+                        default:
+                            image = unknown_path;
+                            break;
+                      }
+                      nodes.push({id: id, label: label, font: node_font, image: image, shape: "image"});
+                });
+
+                // translate edges json into vis compatible format
+                Object.entries(jsonobj.edges).forEach((entry) => {
+                    const [key, value] = entry;
+                    id = value.id;
+                    from = value.from;
+                    to = value.to;
+                    label = value.label;
+                    edges.push({from: from, to: to, label: label, font: edge_font});
+                });
+            }
+            var data = {
+                nodes: nodes,
+                edges: edges,
+            };
+
+            // create a network
+            var container = document.getElementById("mynetwork");
+
+            var options = {
+              physics: {
+                stabilization: false,
+                wind: { x: 0, y: 0 },
+              },
+              //layout: {
+                //hierarchical: {
+                  //  direction: "RL",
+                //},
+              //},
+              configure: {
+                filter: function (option, path) {
+                  if (path.indexOf("physics") !== -1) {
+                    return true;
+                  }
+                  if (path.indexOf("smooth") !== -1 || option === "smooth") {
+                    return true;
+                  }
+                  return false;
+                },
+                container: document.getElementById("config"),
+              },
+            };
+            network = new vis.Network(container, data, options);
+          }
+        </script>
+    </head>
+
+    <body onload="draw();">
+
+        <h2>BloodRooster</h2>
+        <div style="width: 100%">
+            <div id="mynetwork" style="width: 70%; height: 100px; float: left;"></div>
+            <div style="width: 20%; height: 100px; float: left;">
+                <br>
+                <label for="src">Source</label><br>
+                <input type="text" id="src" name="src"><br>
+                <label for="dst">Destination</label><br>
+                <input type="text" id="dst" name="dst"><br>
+                <label for="submit_type"></label><br>
+                <select id="submit_type" name="submit_type">
+                    <option value="shortest_path_src">Shorted Path to source</option>
+                    <option value="shortest_path_dst">Shorted Path to desination</option>
+                </select>
+                <input id="submit_button" type="submit" value="Submit"><br><br>
+                <button id="showadvancedbutton" onclick="showAdvanced()">Graph Advanced Settings →</button>
+                <div id="config" style="display: none;"></div>
+            </div>
+        </div>
+
+        <script type="text/javascript">
+            // toggle showing the vis graph advanced options
+            function showAdvanced() {
+              var x = document.getElementById("config");
+              var y = document.getElementById("showadvancedbutton");
+              if (x.style.display === "none") {
+                x.style.display = "block";
+                y.innerHTML = "Graph Advanced Settings ↓";
+              } else {
+                x.style.display = "none";
+                y.innerHTML = "Graph Advanced Settings →";
+              }
+            }
+
+            // submit_button handler
+            $(document).on('click','#submit_button',function(e) {
+                e.preventDefault();
+
+                // package all fields into json object
+                var data = {
+                    'data': $('#src').val(),
+                    'src': $('#src').val(),
+                    'dst': $('#dst').val(),
+                    'submit_type': $('#submit_type').val()
+                };
+
+                // ajax past to /graph_update to request new graph data
+                $.ajax({
+                    type:'POST',
+                    url:'/graph_update',
+                    data: JSON.stringify(data),
+                    processData: false,
+                    contentType: "application/json; charset=UTF-8",
+                    success:function(text) {
+                        draw(text);
+                    }
+                })
+            });
+        </script>
+    </body>
+</html>
