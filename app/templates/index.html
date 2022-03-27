@@ -109,11 +109,11 @@
                 stabilization: false,
                 wind: { x: 0, y: 0 },
               },
-              //layout: {
-                //hierarchical: {
-                  //  direction: "RL",
-                //},
-              //},
+              layout: {
+                hierarchical: {
+                    direction: "RL",
+                },
+              },
               configure: {
                 filter: function (option, path) {
                   if (path.indexOf("physics") !== -1) {
