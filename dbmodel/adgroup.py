@@ -28,7 +28,7 @@ class Group(Basemodel, Serializer):
 	whenCreated = Column(DateTime, index=True)
 	adminCount = Column(Integer, index=True)
 
-	checksum = Column(String, index = True)
+	checksum = Column(String, index=True)
 
 	def gen_checksum(self):
 		ctx = hashlib.md5()

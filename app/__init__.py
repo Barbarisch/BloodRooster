@@ -11,7 +11,7 @@ bloodrooster_app.sessions = {}
 # bloodrooster_app.splinter_clients_mtx = threading.Lock()
 Bootstrap(bloodrooster_app)
 # Session(bloodrooster_app)
-bloodrooster_socketapp = SocketIO(bloodrooster_app, async_mode=None, logger=True, engineio_logger=True)
+# bloodrooster_socketapp = SocketIO(bloodrooster_app, async_mode=None, logger=True, engineio_logger=True)
 
 from app.routes import *
 bloodrooster_app.register_blueprint(bloodrooster_routes)

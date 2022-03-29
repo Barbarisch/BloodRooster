@@ -1,5 +1,5 @@
-from app import bloodrooster_socketapp, bloodrooster_app
+from app import bloodrooster_app
 
 
 if __name__ == '__main__':
-    bloodrooster_socketapp.run(bloodrooster_app)
+    bloodrooster_app.run()

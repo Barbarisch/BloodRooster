@@ -26,13 +26,30 @@
                 min-height: 700px;
                 margin: 5px;
                 border: 1px solid lightgray;
+                display: flex;
+                align-items: center;
+                justify-content: center;
             }
 
             #config {
                 float: left;
                 width: 400px;
                 height: 600px;
-              }
+            }
+
+            #loader {
+                border: 16px solid #f3f3f3; /* Light grey */
+                border-top: 16px solid #3498db; /* Blue */
+                border-radius: 50%;
+                width: 120px;
+                height: 120px;
+                animation: spin 2s linear infinite;
+            }
+
+            @keyframes spin {
+                0% { transform: rotate(0deg); }
+                100% { transform: rotate(360deg); }
+            }
 
             button {
                 background: none!important;
@@ -43,93 +60,34 @@
                 //font-family: arial, sans-serif;
                 cursor: pointer;
             }
-        </style>
 
-        <script type="text/javascript">
-          //var nodes = null;
-          //var edges = null;
-          //var network = null;
-
-          function draw(jsonstr='') {
-            var computer_path = "static/images/computer.png";
-            var user_path = "static/images/user.png";
-            var group_path = "static/images/group.png";
-            var unknown_path = "static/images/unknown.png";
-
-            nodes = [];
-            edges = [];
-
-            node_font = { size: 12, color: "white", face: "arial" }
-            edge_font = { size: 12, color: "white", face: "arial" }
-
-            jsonobj = JSON.parse(jsonstr);
-            if (jsonobj != null) {
-                // translate nodes json into vis compatible format
-                Object.entries(jsonobj.nodes).forEach((entry) => {
-                    const [key, value] = entry;
-                    id = value.id;
-                    label = value.name;
-                    switch(value.type) {
-                        case "computer":
-                            image = computer_path;
-                            break;
-                        case "user":
-                            image = user_path;
-                            break;
-                        case "group":
-                            image = group_path;
-                            break;
-                        default:
-                            image = unknown_path;
-                            break;
-                      }
-                      nodes.push({id: id, label: label, font: node_font, image: image, shape: "image"});
-                });
-
-                // translate edges json into vis compatible format
-                Object.entries(jsonobj.edges).forEach((entry) => {
-                    const [key, value] = entry;
-                    id = value.id;
-                    from = value.from;
-                    to = value.to;
-                    label = value.label;
-                    edges.push({from: from, to: to, label: label, font: edge_font});
-                });
+            .custom-menu {
+                display: none;
+                z-index: 1000;
+                position: absolute;
+                overflow: hidden;
+                border: 1px solid #CCC;
+                white-space: nowrap;
+                font-family: sans-serif;
+                background: #FFF;
+                color: #333;
+                border-radius: 5px;
+                padding: 0;
             }
-            var data = {
-                nodes: nodes,
-                edges: edges,
-            };
 
-            // create a network
-            var container = document.getElementById("mynetwork");
+            /* Each of the items in the list */
+            .custom-menu li {
+                padding: 8px 12px;
+                cursor: pointer;
+                list-style-type: none;
+                transition: all .3s ease;
+                user-select: none;
+            }
 
-            var options = {
-              physics: {
-                stabilization: false,
-                wind: { x: 0, y: 0 },
-              },
-              layout: {
-                hierarchical: {
-                    direction: "RL",
-                },
-              },
-              configure: {
-                filter: function (option, path) {
-                  if (path.indexOf("physics") !== -1) {
-                    return true;
-                  }
-                  if (path.indexOf("smooth") !== -1 || option === "smooth") {
-                    return true;
-                  }
-                  return false;
-                },
-                container: document.getElementById("config"),
-              },
-            };
-            network = new vis.Network(container, data, options);
-          }
-        </script>
+            .custom-menu li:hover {
+                background-color: #DEF;
+            }
+        </style>
     </head>
 
     <body onload="draw();">
@@ -137,24 +95,196 @@
         <h2>BloodRooster</h2>
         <div style="width: 100%">
             <div id="mynetwork" style="width: 70%; height: 100px; float: left;"></div>
-            <div style="width: 20%; height: 100px; float: left;">
-                <br>
+            <div style="width: 20%; height: 100px; float: left;"><br>
                 <label for="src">Source</label><br>
                 <input type="text" id="src" name="src"><br>
                 <label for="dst">Destination</label><br>
                 <input type="text" id="dst" name="dst"><br>
                 <label for="submit_type"></label><br>
                 <select id="submit_type" name="submit_type">
-                    <option value="shortest_path_src">Shorted Path to source</option>
-                    <option value="shortest_path_dst">Shorted Path to desination</option>
+                    <option value="shortest_path_src">Shortest Path to source</option>
+                    <option value="shortest_path_dst">Shortest Path to destination</option>
                 </select><br><br>
-                <input id="submit_button" type="submit" value="Submit"><br><br>
+                <input id="submit_button" type="submit" value="Submit" onclick="submit_clicked()"><br><br>
+                <input id="submit_button2" type="submit" value="Submit" onclick="submit2_clicked()"><br><br>
                 <button id="showadvancedbutton" onclick="showAdvanced()">Graph Advanced Settings →</button>
                 <div id="config" style="display: none;"></div>
             </div>
         </div>
+        <div id="extended_info"></div>
+        <ul class='custom-menu'>
+          <li data-action="info">Extended Info</li>
+        </ul>
+
 
         <script type="text/javascript">
+            var nodes = null;
+            var edges = null;
+            var network = null;
+
+            function draw(jsonstr='') {
+                var computer_path = "static/images/computer.png";
+                var user_path = "static/images/user.png";
+                var group_path = "static/images/group.png";
+                var unknown_path = "static/images/unknown.png";
+
+                nodes = [];
+                edges = [];
+
+                node_font = { size: 12, color: "white", face: "arial" }
+                edge_font = { size: 12, color: "white", face: "arial" }
+
+                console.log(jsonstr.length);
+                console.log(jsonstr);
+
+                if (jsonstr.length > 0) {
+                    jsonobj = JSON.parse(jsonstr);
+                    if (jsonobj != null) {
+                        // translate nodes json into vis compatible format
+                        Object.entries(jsonobj.nodes).forEach((entry) => {
+                            const [key, value] = entry;
+                            id = value.id;
+                            label = value.name;
+                            group = value.group;
+                            switch(value.type) {
+                                case "computer":
+                                    image = computer_path;
+                                    break;
+                                case "user":
+                                    image = user_path;
+                                    break;
+                                case "group":
+                                    image = group_path;
+                                    break;
+                                default:
+                                    image = unknown_path;
+                                    break;
+                              }
+                              nodes.push({
+                                id: id,
+                                label: label,
+                                title: id,
+                                group: group,
+                                font: node_font,
+                                image: image,
+                                shape: "image"
+                              });
+                        });
+
+                        // translate edges json into vis compatible format
+                        Object.entries(jsonobj.edges).forEach((entry) => {
+                            const [key, value] = entry;
+                            id = value.id;
+                            from = value.from;
+                            to = value.to;
+                            label = value.label;
+                            edges.push({from: from, to: to, label: label, font: edge_font});
+                        });
+                    }
+                }
+
+                var data = {
+                    nodes: nodes,
+                    edges: edges,
+                };
+
+                var y = document.getElementById("config");
+                y.innerHTML = "";
+
+                ////////////////////
+                // create a network
+                ////////////////////
+
+                var container = document.getElementById("mynetwork");
+
+                var options = {
+                  physics: {
+                    stabilization: false,
+                    hierarchicalRepulsion: {
+                      avoidOverlap: 1,
+                    },
+                  },
+                  layout: {
+                    hierarchical: {
+                        direction: "LR",
+                        sortMethod: "directed",
+                    },
+                  },
+
+                  configure: {
+                    filter: function (option, path) {
+                      if (path.indexOf("physics") !== -1) {
+                        return true;
+                      }
+                      if (path.indexOf("smooth") !== -1 || option === "smooth") {
+                        return true;
+                      }
+                      return false;
+                    },
+                    container: document.getElementById("config"),
+                  },
+                };
+
+                network = new vis.Network(container, data, options);
+
+                //////////////////
+                // event handlers
+                /////////////////
+
+                network.on("doubleClick", function (params) {
+                    var test = network.getSelectedNodes()
+
+                    if (test.length > 0) {
+                        console.log(test[0])
+                        // ajax past to /extended_info to request new graph data
+                        $.ajax({
+                            type:'POST',
+                            url:'/extended_info',
+                            data: test[0],
+                            //processData: false,
+                            //contentType: "application/json; charset=UTF-8",
+                            success:function(text) {
+                                var y = document.getElementById("extended_info");
+                                console.log('Before');
+                                console.log(y.innerHTML);
+                                y.innerHTML = text;
+                                console.log('After');
+                                console.log(y.innerHTML);
+                            }
+                        });
+                    }
+                });
+
+                network.on("oncontext", function (params) {
+                    params.event.preventDefault();
+                    $(".custom-menu").finish().toggle(100);
+                    $(".custom-menu").css({
+                        top: params.event.pageY + "px",
+                        left: params.event.pageX + "px"
+                    });
+                });
+
+                network.on("stabilizationProgress", function (params) {
+                  var maxWidth = 496;
+                  var minWidth = 20;
+                  var widthFactor = params.iterations / params.total;
+                  var width = Math.max(minWidth, maxWidth * widthFactor);
+
+                  document.getElementById("bar").style.width = width + "px";
+                  document.getElementById("text").innerText =
+                    Math.round(widthFactor * 100) + "%";
+                });
+                network.once("stabilizationIterationsDone", function () {
+                  document.getElementById("text").innerText = "100%";
+                  document.getElementById("bar").style.width = "496px";
+                  document.getElementById("loadingBar").style.opacity = 0;
+                  // really clean the dom element
+                  setTimeout(function () {
+                    document.getElementById("loadingBar").style.display = "none";
+                  }, 500);
+                });
+            }
+
             // toggle showing the vis graph advanced options
             function showAdvanced() {
               var x = document.getElementById("config");
@@ -168,10 +298,18 @@
               }
             }
 
-            // submit_button handler
-            $(document).on('click','#submit_button',function(e) {
-                e.preventDefault();
+            // toggle showing the vis graph advanced options
+              function showLoading() {
+              //<div id="loader" style="display: none;"></div>
+                console.log("TESING");
+                  var y = document.getElementById("mynetwork");
+                  y.innerHTML = '<div id="loader"></div>';
+              }
 
+            // submit_button handler
+            function submit_clicked() {
+                //e.preventDefault();
+                showLoading("block");
                 // package all fields into json object
                 var data = {
                     'data': $('#src').val(),
@@ -190,8 +328,35 @@
                     success:function(text) {
                         draw(text);
                     }
-                })
+                });
+            }
+
+            // If the menu element is clicked
+            $(".custom-menu li").click(function(){
+                // This is the triggered action name
+                switch($(this).attr("data-action")) {
+
+                    // A case for each action. Your actions here
+                    case "info":
+                        break;
+                }
+
+                // Hide it AFTER the action was triggered
+                $(".custom-menu").hide(100);
             });
+
+            function submit2_clicked() {
+                console.log('ADFHJDHF');
+                network.body.data.nodes.add({ id: 72, label: "one"});
+                network.body.data.nodes.add({ id: 73, label: "two"});
+                network.body.data.nodes.add({ id: 74, label: "three"});
+                network.body.data.nodes.add({ id: 75, label: "four"});
+
+                network.body.data.edges.add({from: 72, to: 73});
+                network.body.data.edges.add({from: 73, to: 74});
+                network.body.data.edges.add({from: 74, to: 75});
+                network.body.data.edges.add({from: 75, to: "S-1-5-21-3937601378-3721788405-2067139823-1834"});
+            }
         </script>
     </body>
 </html>
