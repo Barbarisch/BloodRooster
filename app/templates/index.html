@@ -87,6 +87,69 @@
             .custom-menu li:hover {
                 background-color: #DEF;
             }
+
+            /* Custom sliders */
+            .switch {
+              position: relative;
+              display: inline-block;
+              width: 30px;
+              height: 17px;
+            }
+
+            /* Hide default HTML checkbox */
+            .switch input {
+              opacity: 0;
+              width: 0;
+              height: 0;
+            }
+
+            /* The slider */
+            .slider {
+              position: absolute;
+              cursor: pointer;
+              top: 0;
+              left: 0;
+              right: 0;
+              bottom: 0;
+              background-color: #ccc;
+              -webkit-transition: .4s;
+              transition: .4s;
+            }
+
+            .slider:before {
+              position: absolute;
+              content: "";
+              height: 13px;
+              width: 13px;
+              left: 2px;
+              bottom: 2px;
+              background-color: white;
+              -webkit-transition: .4s;
+              transition: .4s;
+            }
+
+            input:checked + .slider {
+              background-color: #2196F3;
+            }
+
+            input:focus + .slider {
+              box-shadow: 0 0 1px #2196F3;
+            }
+
+            input:checked + .slider:before {
+              -webkit-transform: translateX(13px);
+              -ms-transform: translateX(13px);
+              transform: translateX(13px);
+            }
+
+            /* Rounded sliders */
+            .slider.round {
+              border-radius: 17px;
+            }
+
+            .slider.round:before {
+              border-radius: 50%;
+            }
         </style>
     </head>
 
@@ -104,9 +167,49 @@
                 <select id="submit_type" name="submit_type">
                     <option value="shortest_path_src">Shortest Path to source</option>
                     <option value="shortest_path_dst">Shortest Path to destination</option>
+                    <option value="shortest_path_src_dst">Shortest Path from source to destination</option>
                 </select><br><br>
                 <input id="submit_button" type="submit" value="Submit" onclick="submit_clicked()"><br><br>
-                <input id="submit_button2" type="submit" value="Submit" onclick="submit2_clicked()"><br><br>
+                <input id="submit_button2" type="submit" value="TEST" onclick="test_clicked()"><br><br>
+                <button id="edgetogglebutton" onclick="showEdgeToggle()">Edge toggle →</button><br><br>
+                <div id="edgetoggle" style="display: none;">
+                    <label class="switch">
+                        <input type="checkbox" id="member_check" checked>
+                        <span class="slider round"></span>
+                    </label>member<br>
+                    <label class="switch">
+                        <input type="checkbox" id="WriteOwner_check" checked>
+                        <span class="slider round"></span>
+                    </label>WriteOwner<br>
+                    <label class="switch">
+                        <input type="checkbox" id="Owns_check" checked>
+                        <span class="slider round"></span>
+                    </label>Owns<br>
+                    <label class="switch">
+                        <input type="checkbox" id="GenericWrite_check" checked>
+                        <span class="slider round"></span>
+                    </label>GenericWrite<br>
+                    <label class="switch">
+                        <input type="checkbox" id="GenericAll_check" checked>
+                        <span class="slider round"></span>
+                    </label>GenericAll<br>
+                    <label class="switch">
+                        <input type="checkbox" id="AllExtendedRights_check" checked>
+                        <span class="slider round"></span>
+                    </label>AllExtendedRights<br>
+                    <label class="switch">
+                        <input type="checkbox" id="AddKeyCredentialLink_check" checked>
+                        <span class="slider round"></span>
+                    </label>AddKeyCredentialLink<br>
+                    <label class="switch">
+                        <input type="checkbox" id="GetChanges_check" checked>
+                        <span class="slider round"></span>
+                    </label>GetChanges<br>
+                    <label class="switch">
+                        <input type="checkbox" id="GetChangesAll_check" checked>
+                        <span class="slider round"></span>
+                    </label>GetChangesAll<br>
+                </div>
                 <button id="showadvancedbutton" onclick="showAdvanced()">Graph Advanced Settings →</button>
                 <div id="config" style="display: none;"></div>
             </div>
@@ -115,247 +218,22 @@
         <ul class='custom-menu'>
           <li data-action="info">Extended Info</li>
         </ul>
-
-
-        <script type="text/javascript">
-            var nodes = null;
-            var edges = null;
-            var network = null;
-
-            function draw(jsonstr='') {
-                var computer_path = "static/images/computer.png";
-                var user_path = "static/images/user.png";
-                var group_path = "static/images/group.png";
-                var unknown_path = "static/images/unknown.png";
-
-                nodes = [];
-                edges = [];
-
-                node_font = { size: 12, color: "white", face: "arial" }
-                edge_font = { size: 12, color: "white", face: "arial" }
-
-                console.log(jsonstr.length);
-                console.log(jsonstr);
-
-                if (jsonstr.length > 0) {
-                    jsonobj = JSON.parse(jsonstr);
-                    if (jsonobj != null) {
-                        // translate nodes json into vis compatible format
-                        Object.entries(jsonobj.nodes).forEach((entry) => {
-                            const [key, value] = entry;
-                            id = value.id;
-                            label = value.name;
-                            group = value.group;
-                            switch(value.type) {
-                                case "computer":
-                                    image = computer_path;
-                                    break;
-                                case "user":
-                                    image = user_path;
-                                    break;
-                                case "group":
-                                    image = group_path;
-                                    break;
-                                default:
-                                    image = unknown_path;
-                                    break;
-                              }
-                              nodes.push({
-                                id: id,
-                                label: label,
-                                title: id,
-                                group: group,
-                                font: node_font,
-                                image: image,
-                                shape: "image"
-                              });
-                        });
-
-                        // translate edges json into vis compatible format
-                        Object.entries(jsonobj.edges).forEach((entry) => {
-                            const [key, value] = entry;
-                            id = value.id;
-                            from = value.from;
-                            to = value.to;
-                            label = value.label;
-                            edges.push({from: from, to: to, label: label, font: edge_font});
-                        });
-                    }
-                }
-
-                var data = {
-                    nodes: nodes,
-                    edges: edges,
-                };
-
-                var y = document.getElementById("config");
-                y.innerHTML = "";
-
-                ////////////////////
-                // create a network
-                ////////////////////
-
-                var container = document.getElementById("mynetwork");
-
-                var options = {
-                  physics: {
-                    stabilization: false,
-                    hierarchicalRepulsion: {
-                      avoidOverlap: 1,
-                    },
-                  },
-                  layout: {
-                    hierarchical: {
-                        direction: "LR",
-                        sortMethod: "directed",
-                    },
-                  },
-
-                  configure: {
-                    filter: function (option, path) {
-                      if (path.indexOf("physics") !== -1) {
-                        return true;
-                      }
-                      if (path.indexOf("smooth") !== -1 || option === "smooth") {
-                        return true;
-                      }
-                      return false;
-                    },
-                    container: document.getElementById("config"),
-                  },
-                };
-
-                network = new vis.Network(container, data, options);
-
-                //////////////////
-                // event handlers
-                /////////////////
-
-                network.on("doubleClick", function (params) {
-                    var test = network.getSelectedNodes()
-
-                    if (test.length > 0) {
-                        console.log(test[0])
-                        // ajax past to /extended_info to request new graph data
-                        $.ajax({
-                            type:'POST',
-                            url:'/extended_info',
-                            data: test[0],
-                            //processData: false,
-                            //contentType: "application/json; charset=UTF-8",
-                            success:function(text) {
-                                var y = document.getElementById("extended_info");
-                                console.log('Before');
-                                console.log(y.innerHTML);
-                                y.innerHTML = text;
-                                console.log('After');
-                                console.log(y.innerHTML);
-                            }
-                        });
-                    }
-                });
-
-                network.on("oncontext", function (params) {
-                    params.event.preventDefault();
-                    $(".custom-menu").finish().toggle(100);
-                    $(".custom-menu").css({
-                        top: params.event.pageY + "px",
-                        left: params.event.pageX + "px"
-                    });
-                });
-
-                network.on("stabilizationProgress", function (params) {
-                  var maxWidth = 496;
-                  var minWidth = 20;
-                  var widthFactor = params.iterations / params.total;
-                  var width = Math.max(minWidth, maxWidth * widthFactor);
-
-                  document.getElementById("bar").style.width = width + "px";
-                  document.getElementById("text").innerText =
-                    Math.round(widthFactor * 100) + "%";
-                });
-                network.once("stabilizationIterationsDone", function () {
-                  document.getElementById("text").innerText = "100%";
-                  document.getElementById("bar").style.width = "496px";
-                  document.getElementById("loadingBar").style.opacity = 0;
-                  // really clean the dom element
-                  setTimeout(function () {
-                    document.getElementById("loadingBar").style.display = "none";
-                  }, 500);
-                });
-            }
-
-            // toggle showing the vis graph advanced options
-            function showAdvanced() {
-              var x = document.getElementById("config");
-              var y = document.getElementById("showadvancedbutton");
-              if (x.style.display === "none") {
-                x.style.display = "block";
-                y.innerHTML = "Graph Advanced Settings ↓";
-              } else {
-                x.style.display = "none";
-                y.innerHTML = "Graph Advanced Settings →";
-              }
-            }
-
-            // toggle showing the vis graph advanced options
-              function showLoading() {
-              //<div id="loader" style="display: none;"></div>
-                console.log("TESING");
-                  var y = document.getElementById("mynetwork");
-                  y.innerHTML = '<div id="loader"></div>';
-              }
-
-            // submit_button handler
-            function submit_clicked() {
-                //e.preventDefault();
-                showLoading("block");
-                // package all fields into json object
-                var data = {
-                    'data': $('#src').val(),
-                    'src': $('#src').val(),
-                    'dst': $('#dst').val(),
-                    'submit_type': $('#submit_type').val()
-                };
-
-                // ajax past to /graph_update to request new graph data
-                $.ajax({
-                    type:'POST',
-                    url:'/graph_update',
-                    data: JSON.stringify(data),
-                    processData: false,
-                    contentType: "application/json; charset=UTF-8",
-                    success:function(text) {
-                        draw(text);
-                    }
-                });
-            }
-
-            // If the menu element is clicked
-            $(".custom-menu li").click(function(){
-                // This is the triggered action name
-                switch($(this).attr("data-action")) {
-
-                    // A case for each action. Your actions here
-                    case "info":
-                        break;
-                }
-
-                // Hide it AFTER the action was triggered
-                $(".custom-menu").hide(100);
+        <script src="{{ url_for('static', filename='js/bloodrooster.js') }}"></script>
+        <script>
+            // capture resize event so extended_info always same size as network
+            $(window).resize(function() {
+                setWidth($('#mynetwork'), $('#extended_info'));
             });
 
-            function submit2_clicked() {
-                console.log('ADFHJDHF');
-                network.body.data.nodes.add({ id: 72, label: "one"});
-                network.body.data.nodes.add({ id: 73, label: "two"});
-                network.body.data.nodes.add({ id: 74, label: "three"});
-                network.body.data.nodes.add({ id: 75, label: "four"});
+            // when loaded extended_info gets resized to same as network
+            $(document).ready(function() {
+              setWidth($('#mynetwork'), $('#extended_info'));
+            });
 
-                network.body.data.edges.add({from: 72, to: 73});
-                network.body.data.edges.add({from: 73, to: 74});
-                network.body.data.edges.add({from: 74, to: 75});
-                network.body.data.edges.add({from: 75, to: "S-1-5-21-3937601378-3721788405-2067139823-1834"});
+            // sets width of element 2 to equal the width of element 1
+            function setWidth(elem1, elem2) {
+              var width = elem1.width()
+              elem2.css('width', width);
             }
         </script>
     </body>

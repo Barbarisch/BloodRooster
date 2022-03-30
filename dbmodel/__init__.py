@@ -88,7 +88,7 @@ def bc(x):
 	"""
 	if x is None:
 		return None
-	if isinstance(x,bool):
+	if isinstance(x, bool):
 		return x
 	if isinstance(x, str):
 		if x.upper() == 'TRUE':
@@ -171,7 +171,7 @@ def create_db(connection, verbosity=0, inmemory=False):
 	logging.info('Done creating database %s' % connection)
 
 
-def get_session(connection, verbosity = 0):
+def get_session(connection, verbosity=0):
 	logging.debug('Connecting to DB')
 	engine = create_engine(connection, echo=True if verbosity > 1 else False)
 	logging.debug('Creating session')
