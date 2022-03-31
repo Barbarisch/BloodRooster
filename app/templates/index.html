@@ -150,6 +150,42 @@
             .slider.round:before {
               border-radius: 50%;
             }
+
+            /* autocomplete stuff sor src and dst */
+            .autocomplete {
+              position: relative;
+              display: inline-block;
+            }
+
+            .autocomplete-items {
+              position: absolute;
+              border: 1px solid #d4d4d4;
+              border-bottom: none;
+              border-top: none;
+              z-index: 99;
+              /*position the autocomplete items to be the same width as the container:*/
+              top: 100%;
+              left: 0;
+              right: 0;
+            }
+
+            .autocomplete-items div {
+              padding: 10px;
+              cursor: pointer;
+              background-color: #fff;
+              border-bottom: 1px solid #d4d4d4;
+            }
+
+            /*when hovering an item:*/
+            .autocomplete-items div:hover {
+              background-color: #e9e9e9;
+            }
+
+            /*when navigating through the items using the arrow keys:*/
+            .autocomplete-active {
+              background-color: DodgerBlue !important;
+              color: #ffffff;
+            }
         </style>
     </head>
 
@@ -160,14 +196,23 @@
             <div id="mynetwork" style="width: 70%; height: 100px; float: left;"></div>
             <div style="width: 20%; height: 100px; float: left;"><br>
                 <label for="src">Source</label><br>
-                <input type="text" id="src" name="src"><br>
+                <form autocomplete="off">
+                    <div class="autocomplete">
+                        <input type="text" id="src" name="src"><br><br>
+                    </div>
+                </form>
                 <label for="dst">Destination</label><br>
-                <input type="text" id="dst" name="dst"><br>
+                <form autocomplete="off">
+                    <div class="autocomplete">
+                        <input type="text" id="dst" name="dst"><br><br>
+                    </div>
+                </form>
                 <label for="submit_type"></label><br>
                 <select id="submit_type" name="submit_type">
                     <option value="shortest_path_src">Shortest Path to source</option>
                     <option value="shortest_path_dst">Shortest Path to destination</option>
                     <option value="shortest_path_src_dst">Shortest Path from source to destination</option>
+                    <option value="kerberoastable_users">Get all kerberoastable users</option>
                 </select><br><br>
                 <input id="submit_button" type="submit" value="Submit" onclick="submit_clicked()"><br><br>
                 <input id="submit_button2" type="submit" value="TEST" onclick="test_clicked()"><br><br>
@@ -209,6 +254,34 @@
                         <input type="checkbox" id="GetChangesAll_check" checked>
                         <span class="slider round"></span>
                     </label>GetChangesAll<br>
+                    <label class="switch">
+                        <input type="checkbox" id="AddMember_check" checked>
+                        <span class="slider round"></span>
+                    </label>AddMember<br>
+                    <label class="switch">
+                        <input type="checkbox" id="All_check" checked>
+                        <span class="slider round"></span>
+                    </label>All<br>
+                    <label class="switch">
+                        <input type="checkbox" id="Owner_check" checked>
+                        <span class="slider round"></span>
+                    </label>Owner<br>
+                    <label class="switch">
+                        <input type="checkbox" id="ReadGMSAPassword_check" checked>
+                        <span class="slider round"></span>
+                    </label>ReadGMSAPassword<br>
+                    <label class="switch">
+                        <input type="checkbox" id="User-Force-Change-Password_check" checked>
+                        <span class="slider round"></span>
+                    </label>User-Force-Change-Password<br>
+                    <label class="switch">
+                        <input type="checkbox" id="WriteDacl_check" checked>
+                        <span class="slider round"></span>
+                    </label>WriteDacl<br>
+                    <label class="switch">
+                        <input type="checkbox" id="sqladmin_check" checked>
+                        <span class="slider round"></span>
+                    </label>sqladmin<br>
                 </div>
                 <button id="showadvancedbutton" onclick="showAdvanced()">Graph Advanced Settings →</button>
                 <div id="config" style="display: none;"></div>
@@ -235,6 +308,9 @@
               var width = elem1.width()
               elem2.css('width', width);
             }
+
+            autocomplete(document.getElementById("src"));
+            autocomplete(document.getElementById("dst"));
         </script>
     </body>
 </html>

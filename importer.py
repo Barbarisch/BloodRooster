@@ -600,7 +600,9 @@ class Importer:
                 res = self.db_session.query(Machine).filter_by(dNSHostName=spn.computername.upper()).filter(
                     Machine.ad_id == spn.ad_id).first()
                 if res is not None:
-                    edge = Edge(spn.ad_id, self.graphid, spn.owner_sid, res.objectSid, 'sqladmin')
+                    dst = self.sid_to_id(res.objectSid, spn.ad_id)
+                    src = self.sid_to_id(spn.owner_sid, spn.ad_id)
+                    edge = Edge(spn.ad_id, self.graphid, src, dst, 'sqladmin')
                     self.db_session.add(edge)
                 else:
                     # logger.debug('[BHIMPORT2] sqlaldmin add edge cant find machine %s' % spn.computername)

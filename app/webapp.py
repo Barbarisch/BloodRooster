@@ -1,3 +1,5 @@
+from sqlalchemy.sql.expression import func
+
 from app import db
 from dbmodel import *
 
@@ -60,6 +62,44 @@ class BloodRoostrWebApp:
             return res.objectGUID
         return ''
 
+    def autocomplete(self, text=b'', max_return=15):
+        print('AUTOCOMPLETE called', text)
+        text = text.decode('utf-8')
+        matches = []
+
+        res = db.session.query(Machine).filter(Machine.name.startswith(text.upper()))
+        if res:
+            for t in res:
+                if len(matches) <= max_return:
+                    matches.append(t.name)
+
+        res = db.session.query(Group).filter(Group.name.startswith(text.upper()))
+        if res:
+            for t in res:
+                if len(matches) <= max_return:
+                    matches.append(t.name)
+
+        res = db.session.query(ADUser).filter(ADUser.name.startswith(text.upper()))
+        if res:
+            for t in res:
+                if len(matches) <= max_return:
+                    matches.append(t.name)
+
+        res = db.session.query(GPO).filter(GPO.name.startswith(text.upper()))
+        if res:
+            for t in res:
+                if len(matches) <= max_return:
+                    matches.append(t.name)
+
+        res = db.session.query(ADOU).filter(ADOU.name.startswith(text.upper()))
+        if res:
+            for t in res:
+                if len(matches) <= max_return:
+                    matches.append(t.name)
+
+        print('returning matches', matches)
+        return json.dumps(matches)
+
     def graph_update(self, json_data):
         final = {'nodes': {}, 'edges': {}}
 
@@ -87,6 +127,8 @@ class BloodRoostrWebApp:
             src = self.name_to_sid(json_data['src'])
             dst = self.name_to_sid(json_data['dst'])
             self.path_src_to_dst(src, dst, max_depth=max_depth, edge_list=edge_list)
+        elif json_data['submit_type'] == 'kerberoastable_users':
+            self.kerberoastable_users()
         else:
             return final
 
@@ -102,14 +144,18 @@ class BloodRoostrWebApp:
 
         return json.dumps(final)
 
+    def kerberoastable_users(self):
+        res = db.session.query(ADUser).filter(func.length(ADUser.servicePrincipalName) > 0)
+        if res:
+            for user in res:
+                self.nodes.append(make_node(user.objectSid, user.name, 'user', 0))
+
     def path_to_dst(self, oid, max_depth=5, edge_list=None):
-        self.add_node([oid], max_depth=max_depth, edge_list=edge_list)
+        self.add_node_recursive([oid], max_depth=max_depth, edge_list=edge_list)
 
     def path_src_to_dst(self, src, dst, max_depth=99, edge_list=None):
-        # print('Building node/edge lists first', src, dst)
-        self.add_node([dst], max_depth=max_depth, edge_list=edge_list)
+        self.add_node_recursive([dst], max_depth=max_depth, edge_list=edge_list)
 
-        # print('Building graph', self.edges)
         graph = {}
         for edge in self.edges:
             a, b = edge['to'], edge['from']
@@ -125,36 +171,42 @@ class BloodRoostrWebApp:
 
         explored = []
 
-        # Queue for traversing the
-        # graph in the BFS
+        # Queue for traversing the graph in the BFS
         queue = [[src]]
 
-        # If the desired node is
-        # reached
+        # If the desired node is reached
         if src == dst:
-            print("Same Node")
+            print("SRC and DST are equal")
+            tmp_nodes = []
+            for node in self.nodes:
+                if node['id'] in dst:
+                    tmp_nodes.append(node)
+            self.nodes = tmp_nodes
+            self.edges = []
             return
 
-        # Loop to traverse the graph
-        # with the help of the queue
+        if src not in graph.keys():
+            print('No path from src to dst could be found')
+            self.nodes = []
+            self.edges = []
+            return
+
+        # Loop to traverse the graph with the help of the queue
         while queue:
             path = queue.pop(0)
             node = path[-1]
 
-            # Condition to check if the
-            # current node is not visited
+            # Condition to check if the current node is not visited
             if node not in explored:
                 neighbours = graph[node]
 
-                # Loop to iterate over the
-                # neighbours of the node
+                # Loop to iterate over the neighbours of the node
                 for neighbour in neighbours:
                     new_path = list(path)
                     new_path.append(neighbour)
                     queue.append(new_path)
 
-                    # Condition to check if the
-                    # neighbour node is the goal
+                    # Condition to check if the neighbour node is the goal
                     if neighbour == dst:
                         print("Shortest path = ", *new_path)
 
@@ -162,25 +214,24 @@ class BloodRoostrWebApp:
                         for node in self.nodes:
                             if node['id'] in new_path:
                                 tmp_nodes.append(node)
-
                         self.nodes = tmp_nodes
-                        print('after', self.nodes)
 
                         tmp_edges = []
                         for edge in self.edges:
                             if edge['to'] in new_path and edge['from'] in new_path:
                                 tmp_edges.append(edge)
-
                         self.edges = tmp_edges
 
                         return
                 explored.append(node)
 
-        # Condition when the nodes
-        # are not connected
-        print("So sorry, but a connecting path doesn't exist :(")
+        # Condition when the nodes are not connected
+        print('No path from src to dst could be found')
+        self.nodes = []
+        self.edges = []
+        return
 
-    def add_node(self, sids, depth=0, max_depth=5, edge_list=None):
+    def add_node_recursive(self, sids, depth=0, max_depth=5, edge_list=None):
         id_sid_map = {}
 
         if depth > max_depth:
@@ -207,7 +258,7 @@ class BloodRoostrWebApp:
                         new_node = db.session.query(ADOU).filter_by(objectGUID=start.oid).first()
                         self.nodes.append(make_node(new_node.objectGUID, new_node.name, 'ou', depth))
                     else:
-                        print('UNKNOWN!@!!!!!!!')
+                        print('UNKNOWN!@!!!!!!!', start.otype)
                     id_sid_map[start.id] = start.oid
 
         for node_id, node_sid in id_sid_map.items():
@@ -232,7 +283,7 @@ class BloodRoostrWebApp:
                         new_nodes.append(res.oid)
 
         if len(new_nodes) > 0:
-            self.add_node(new_nodes, depth+1, edge_list=edge_list)
+            self.add_node_recursive(new_nodes, depth+1, edge_list=edge_list)
 
     def get_extended_info(self, oid):
         ret = ''

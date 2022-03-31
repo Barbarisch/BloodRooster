@@ -23,7 +23,7 @@ def main():
 
     if args.command == 'dbinit':
         db_conn = args.sql
-        os.environ['SQLALCHEMY_DATABASE_URI'] = db_conn
+        # os.environ['SQLALCHEMY_DATABASE_URI'] = db_conn
         create_db(db_conn)
     elif args.command == 'import':
         db_conn = args.sql

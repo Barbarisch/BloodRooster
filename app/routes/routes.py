@@ -15,6 +15,7 @@ def graph():
 
 @bloodrooster_app.route("/graph_update", methods=['POST'])
 def graph_update():
+    """ Graph updating request handler """
     graph_data = ''
     webapp = BloodRoostrWebApp()
     if request.method == 'POST':
@@ -24,6 +25,16 @@ def graph_update():
 
 @bloodrooster_app.route("/extended_info", methods=['POST'])
 def extended_info():
+    """ Node information request handler """
     webapp = BloodRoostrWebApp()
     object_data = webapp.get_extended_info(request.get_data())
+    return object_data
+
+
+@bloodrooster_app.route("/autocomplete", methods=['POST'])
+def autocomplete():
+    """ Node information request handler """
+    webapp = BloodRoostrWebApp()
+    # object_data = webapp.autocomplete()
+    object_data = webapp.autocomplete(request.get_data())
     return object_data
