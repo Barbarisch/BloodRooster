@@ -1,8 +1,6 @@
+from sqlalchemy import Column, Integer, String, ForeignKey
+
 from . import Basemodel
-import datetime
-from sqlalchemy.orm import relationship
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Boolean
-import json
 from dbmodel.utils.serializer import Serializer
 
 
@@ -10,7 +8,7 @@ class ADSchemaEntry(Basemodel, Serializer):
 	__tablename__ = 'adschemaentry'
 	
 	id = Column(Integer, primary_key=True)
-	ad_id = Column(Integer, ForeignKey('adinfo.id'))
+	ad_id = Column(Integer, ForeignKey('domains.id'))
 	
 	cn = Column(String)
 	dn = Column(String)

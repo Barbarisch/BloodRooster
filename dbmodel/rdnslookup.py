@@ -1,6 +1,7 @@
-from . import Basemodel
-import datetime
 from sqlalchemy import Column, Integer, String, DateTime
+import datetime
+
+from . import Basemodel
 from dbmodel.utils.serializer import Serializer
 
 
@@ -13,7 +14,7 @@ class RDNSLookup(Basemodel, Serializer):
 	ip = Column(String, index=True)
 	domain = Column(String, index=True)
 
-	def __init__(self, ad_id, ip, domain, fetched_at = None):
+	def __init__(self, ad_id, ip, domain, fetched_at=None):
 		self.ad_id = ad_id
 		self.ip = str(ip)
 		self.domain = str(domain)

@@ -1,7 +1,6 @@
-from . import Basemodel, lf
-import datetime
-from sqlalchemy.orm import relationship
 from sqlalchemy import Column, Integer, String, ForeignKey
+
+from . import Basemodel
 from dbmodel.utils.serializer import Serializer
 
 
@@ -9,7 +8,7 @@ class MachineConstrainedDelegation(Basemodel, Serializer):
 	__tablename__ = 'adconstrainedmachine'
 
 	id = Column(Integer, primary_key=True)
-	ad_id = Column(Integer, ForeignKey('adinfo.id'))
+	ad_id = Column(Integer, ForeignKey('domains.id'))
 	machine_sid = Column(String, index=True)
 	target_service = Column(String, index=True)
 	target_server = Column(String, index=True)

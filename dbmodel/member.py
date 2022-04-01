@@ -1,16 +1,15 @@
-from . import Basemodel
-import datetime
-from sqlalchemy.orm import relationship
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Boolean
+from sqlalchemy import Column, Integer, String, ForeignKey
 import json
+
+from . import Basemodel
 from dbmodel.utils.serializer import Serializer
 
 
 class Member(Basemodel, Serializer):
-    __tablename__ = 'admembers'
+    __tablename__ = 'members'
 
     id = Column(Integer, primary_key=True)
-    ad_id = Column(Integer, ForeignKey('adinfo.id'))
+    ad_id = Column(Integer, ForeignKey('domains.id'))
     graph_id = Column(Integer, index=True)
     group_sid = Column(String)
     member_sid = Column(String)

@@ -1,14 +1,13 @@
-from . import Basemodel, lf
+from sqlalchemy import Column, Integer, String, DateTime, BigInteger, Boolean
 import datetime
 import hashlib
-from sqlalchemy.orm import relationship
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, BigInteger, Boolean
-# from jackdaw._version import __version__
+
+from . import Basemodel, lf
 from dbmodel.utils.serializer import Serializer
 
 
-class ADInfo(Basemodel, Serializer):
-	__tablename__ = 'adinfo'
+class Domain(Basemodel, Serializer):
+	__tablename__ = 'domains'
 	
 	id = Column(Integer, primary_key=True)
 	fetched_at = Column(DateTime, default=datetime.datetime.utcnow)
@@ -68,46 +67,46 @@ class ADInfo(Basemodel, Serializer):
 	
 	def to_dict(self):
 		return {
-			'id' : self.id,
-			'fetched_at' : self.fetched_at,
-			'auditingPolicy' : self.auditingPolicy,
-			'creationTime' : self.creationTime,
-			'dc' : self.dc,
-			'distinguishedName' : self.distinguishedName,
-			'forceLogoff' : self.forceLogoff,
-			'instanceType' : self.instanceType,
-			'lockoutDuration' : self.lockoutDuration,
-			'lockOutObservationWindow' : self.lockOutObservationWindow,
-			'lockoutThreshold' : self.lockoutThreshold,
-			'masteredBy' : self.masteredBy,
-			'maxPwdAge' : self.maxPwdAge,
-			'minPwdAge' : self.minPwdAge,
-			'minPwdLength' : self.minPwdLength,
-			'name' : self.name,
-			'nextRid' : self.nextRid,
-			'objectCategory' : self.objectCategory,
-			'objectClass' : self.objectClass,
-			'objectGUID' : self.objectGUID,
-			'objectSid' : self.objectSid,
-			'pwdHistoryLength' : self.pwdHistoryLength,
-			'pwdProperties' : self.pwdProperties,
-			'serverState' : self.serverState,
-			'systemFlags' : self.systemFlags,
-			'uASCompat' : self.uASCompat,
-			'uSNChanged' : self.uSNChanged,
-			'uSNCreated' : self.uSNCreated,
-			'whenChanged' : self.whenChanged,
-			'whenCreated' : self.whenCreated,
-			'domainmodelevel' : self.domainmodelevel,
-			'jdversion' : self.jdversion,
-			'ldap_enumeration_state' : self.ldap_enumeration_state,
-			'smb_enumeration_state' : self.smb_enumeration_state,
-			'checksum' : self.checksum,
+			'id': self.id,
+			'fetched_at': self.fetched_at,
+			'auditingPolicy': self.auditingPolicy,
+			'creationTime': self.creationTime,
+			'dc': self.dc,
+			'distinguishedName': self.distinguishedName,
+			'forceLogoff': self.forceLogoff,
+			'instanceType': self.instanceType,
+			'lockoutDuration': self.lockoutDuration,
+			'lockOutObservationWindow': self.lockOutObservationWindow,
+			'lockoutThreshold': self.lockoutThreshold,
+			'masteredBy': self.masteredBy,
+			'maxPwdAge': self.maxPwdAge,
+			'minPwdAge': self.minPwdAge,
+			'minPwdLength': self.minPwdLength,
+			'name': self.name,
+			'nextRid': self.nextRid,
+			'objectCategory': self.objectCategory,
+			'objectClass': self.objectClass,
+			'objectGUID': self.objectGUID,
+			'objectSid': self.objectSid,
+			'pwdHistoryLength': self.pwdHistoryLength,
+			'pwdProperties': self.pwdProperties,
+			'serverState': self.serverState,
+			'systemFlags': self.systemFlags,
+			'uASCompat': self.uASCompat,
+			'uSNChanged': self.uSNChanged,
+			'uSNCreated': self.uSNCreated,
+			'whenChanged': self.whenChanged,
+			'whenCreated': self.whenCreated,
+			'domainmodelevel': self.domainmodelevel,
+			'jdversion': self.jdversion,
+			'ldap_enumeration_state': self.ldap_enumeration_state,
+			'smb_enumeration_state': self.smb_enumeration_state,
+			'checksum': self.checksum,
 		}
 
 	@staticmethod
 	def from_dict(d):
-		adinfo = ADInfo()
+		adinfo = Domain()
 		adinfo.id = d.get('id')
 		adinfo.fetched_at = d.get('fetched_at')
 		adinfo.auditingPolicy = d.get('auditingPolicy')
@@ -147,7 +146,7 @@ class ADInfo(Basemodel, Serializer):
 
 	@staticmethod
 	def from_msldap(d):
-		adinfo = ADInfo()
+		adinfo = Domain()
 		adinfo.auditingPolicy = d.auditingPolicy
 		adinfo.creationTime = d.creationTime
 		adinfo.dc = d.dc

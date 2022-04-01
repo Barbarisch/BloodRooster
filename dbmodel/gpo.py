@@ -1,16 +1,15 @@
-from . import Basemodel, lf, dt, bc
-import datetime
+from sqlalchemy import Column, Integer, String, ForeignKey
 import hashlib
-from sqlalchemy.orm import relationship
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Boolean
+
+from . import Basemodel, lf, dt
 from dbmodel.utils.serializer import Serializer
 
 
 class GPO(Basemodel, Serializer):
-	__tablename__ = 'adgpo'
+	__tablename__ = 'gpos'
 
 	id = Column(Integer, primary_key=True)
-	ad_id = Column(Integer, ForeignKey('adinfo.id'))
+	ad_id = Column(Integer, ForeignKey('domains.id'))
 	
 	name = Column(String, index=True)
 	dn = Column(String, index=True)
@@ -27,7 +26,7 @@ class GPO(Basemodel, Serializer):
 	gPCUserExtensionNames = Column(String, index=True)
 	versionNumber = Column(String, index=True)
 
-	checksum = Column(String, index = True)
+	checksum = Column(String, index=True)
 
 	def gen_checksum(self):
 		ctx = hashlib.md5()
@@ -45,19 +44,19 @@ class GPO(Basemodel, Serializer):
 	
 	def to_dict(self):
 		return {
-			'id' : self.id ,
-			'ad_id' : self.ad_id ,
-			'cn' : self.cn,
-			'name' : self.name ,
-			'dn' : self.dn ,
-			'path' : self.path,
-			'guid' : self.objectGUID,
-			'whenChanged' : self.whenChanged ,
-			'whenCreated' : self.whenCreated ,
-			'gPCMachineExtensionNames' : self.gPCMachineExtensionNames ,
-			'gPCUserExtensionNames' : self.gPCUserExtensionNames ,
-			'versionNumber' : self.versionNumber ,
-			'checksum' : self.checksum,
+			'id': self.id,
+			'ad_id': self.ad_id,
+			'cn': self.cn,
+			'name': self.name,
+			'dn': self.dn,
+			'path': self.path,
+			'guid': self.objectGUID,
+			'whenChanged': self.whenChanged,
+			'whenCreated': self.whenCreated,
+			'gPCMachineExtensionNames': self.gPCMachineExtensionNames,
+			'gPCUserExtensionNames': self.gPCUserExtensionNames,
+			'versionNumber': self.versionNumber,
+			'checksum': self.checksum,
 		}
 	
 	@staticmethod

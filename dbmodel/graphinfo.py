@@ -1,8 +1,7 @@
-from . import Basemodel
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey
 import datetime
-from sqlalchemy.orm import relationship
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Boolean
-import json
+
+from . import Basemodel
 from dbmodel.utils.serializer import Serializer
 
 
@@ -11,18 +10,18 @@ class GraphInfo(Basemodel, Serializer):
 	
 	id = Column(Integer, primary_key=True)
 	fetched_at = Column(DateTime, default=datetime.datetime.utcnow)
-	description = Column(String, index = True)
+	description = Column(String, index=True)
 
-	def __init__(self, description = None):
+	def __init__(self, description=None):
 		self.description = description
 
 
 class GraphInfoAD(Basemodel, Serializer):
-	__tablename__ = 'graphinfoads'
+	__tablename__ = 'graphinfoad'
 	
 	id = Column(Integer, primary_key=True)
 	fetched_at = Column(DateTime, default=datetime.datetime.utcnow)
-	ad_id = Column(Integer, ForeignKey('adinfo.id'))
+	ad_id = Column(Integer, ForeignKey('domains.id'))
 	graph_id = Column(Integer, ForeignKey('graphinfo.id'))
 
 	def __init__(self, ad_id, graph_id):

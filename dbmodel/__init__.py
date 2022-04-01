@@ -1,17 +1,11 @@
-import datetime
-import logging
-import os
-
 from sqlalchemy.engine import Engine
 from sqlalchemy import event
-from sqlalchemy import create_engine, Column, Integer, String, DateTime, Boolean, ForeignKey, Table, Enum
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import relationship
-from sqlalchemy import create_engine, func
+from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 import enum
-
-from winacl.dtyp.ace import ADS_ACCESS_MASK, AceFlags
+import logging
+import os
 
 Basemodel = declarative_base()
 
@@ -100,106 +94,56 @@ def bc(x):
 	raise Exception('Cant convert this to bool: %s type: %s' % (x, type(x)))
 
 
-from .adgroup import *
-from .admachine import *
-from .adinfo import *
-from .aduser import *
-from .adou import *
-from .credential import *
-from .hashentry import *
-from .netsession import *
-from .netshare import *
-from .spnservice import *
-from .localgroup import *
-from .constrained import *
-from .smbfinger import *
-from .adgplink import *
-from .adgpo import *
-from .netfile import *
-from .netdir import *
-from .adsd import *
-from .adtrust import *
-from .lsasecrets import *
-from .adspn import *
-from .edge import Edge
-from .edgelookup import EdgeLookup
 from .graphinfo import GraphInfo, GraphInfoAD
-from .neterror import NetError
-from .rdnslookup import RDNSLookup
-from .adobjprops import ADObjProps
-from .kerberoast import Kerberoast
-from .smbprotocols import SMBProtocols
-from .smbvuln import SMBVuln
-from .adallowedtoact import MachineAllowedToAct
-from .dnslookup import DNSLookup
-from .adschemaentry import ADSchemaEntry
-from .customcred import CustomCred
-from .portaluser import PortalUser
-from .customtarget import CustomTarget
-from .regsession import RegSession
-from .smbinterface import SMBInterface
-from .smbfile import SMBFile
-from .kerberostickets import KerberosTicket
+from .domain import *
+from .group import *
+from .computer import *
+from .user import *
+from .ou import *
+from .gpo import *
+from .gplink import *
+from .trust import *
+from .spn import *
 from .ace import Ace
 from .member import Member
 from .session import Session
+from .edge import Edge
+from .edgelookup import EdgeLookup
+
+# TODO come back to these
+# from .netsession import *
+# from .netshare import *
+# from .localgroup import *
+# from .delegation import *
+# from .rdnslookup import RDNSLookup
+# from .dnslookup import DNSLookup
+# from .schemaentry import ADSchemaEntry
 
 
 def create_db(connection, verbosity=0, inmemory=False):
 	logging.info('Creating database %s' % connection)
 	engine = create_engine(connection, echo=True if verbosity > 1 else False)  # 'sqlite:///dump.db'
 	Basemodel.metadata.create_all(engine)
-	Session = sessionmaker(engine)
+	session_maker = sessionmaker(engine)
+	new_session = None
 	try:
-		session = Session()
-		# inserting test data...
-		session.add(CustomCred('victim', 'password', 'Passw0rd!1', 'testcred', domain='TEST'))
-		session.add(CustomCred('victim', 'password', 'Passw0rd!1', 'testcred', domain='TEST2'))
-		session.add(CustomCred('victim', 'password', 'Passw0rd!1', 'testcred', domain='TEST3'))
-		session.add(CustomCred('Administrator', 'password', 'Passw0rd!1', 'dcsync testcred', domain='TEST'))
-		session.add(CustomTarget('10.10.10.2', 'testserver'))
-		session.add(CustomTarget('10.10.20.2', 'testserver'))
-		session.add(CustomTarget('10.10.30.2', 'testserver'))
-		session.add(CustomTarget('10.10.10.102', 'fileserver'))
-		session.commit()
+		new_session = session_maker()
 		if inmemory is True:
 			return session
 
 	finally:
-		if inmemory is False:
-			session.close()
-	logging.info('Done creating database %s' % connection)
+		if inmemory is False and new_session:
+			new_session.close()
+	logging.info(f'Done creating database {connection}')
 
 
 def get_session(connection, verbosity=0):
 	logging.debug('Connecting to DB')
 	engine = create_engine(connection, echo=True if verbosity > 1 else False)
+
+	# create a configured "session_maker" class
 	logging.debug('Creating session')
-	# create a configured "Session" class
-	Session = sessionmaker(bind=engine)
+	session_maker = sessionmaker(bind=engine)
+
 	# create a Session
-	return Session()
-	
-	
-am_lookup_table = {
-	ADS_ACCESS_MASK.CREATE_CHILD: 'ace_mask_create_child',
-	ADS_ACCESS_MASK.DELETE_CHILD: 'ace_mask_delete_child',
-	ADS_ACCESS_MASK.ACTRL_DS_LIST: 'ace_mask_actrl_ds_list',
-	ADS_ACCESS_MASK.SELF: 'ace_mask_self',
-	ADS_ACCESS_MASK.READ_PROP: 'ace_mask_read_prop',
-	ADS_ACCESS_MASK.WRITE_PROP: 'ace_mask_write_prop',
-	ADS_ACCESS_MASK.DELETE_TREE: 'ace_mask_delete_tree',
-	ADS_ACCESS_MASK.LIST_OBJECT: 'ace_mask_list_object',
-	ADS_ACCESS_MASK.CONTROL_ACCESS: 'ace_mask_control_access',
-	ADS_ACCESS_MASK.DELETE: 'ace_mask_delete',
-	ADS_ACCESS_MASK.READ_CONTROL: 'ace_mask_read_control',
-	ADS_ACCESS_MASK.WRITE_DACL: 'ace_mask_write_dacl',
-	ADS_ACCESS_MASK.WRITE_OWNER: 'ace_mask_write_owner',
-	ADS_ACCESS_MASK.SYNCHRONIZE: 'ace_mask_synchronize',
-	ADS_ACCESS_MASK.ACCESS_SYSTEM_SECURITY: 'ace_mask_access_system_security',
-	ADS_ACCESS_MASK.MAXIMUM_ALLOWED: 'ace_mask_maximum_allowed',
-	ADS_ACCESS_MASK.GENERIC_ALL: 'ace_mask_generic_all',
-	ADS_ACCESS_MASK.GENERIC_EXECUTE: 'ace_mask_generic_execute',
-	ADS_ACCESS_MASK.GENERIC_WRITE: 'ace_mask_generic_write',
-	ADS_ACCESS_MASK.GENERIC_READ: 'ace_mask_generic_read',
-}
+	return session_maker()

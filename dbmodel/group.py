@@ -1,16 +1,15 @@
-from . import Basemodel, lf
-import hashlib
-import datetime
-from sqlalchemy.orm import relationship
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey
+import hashlib
+
+from . import Basemodel, lf
 from dbmodel.utils.serializer import Serializer
 
 
 class Group(Basemodel, Serializer):
-	__tablename__ = 'adgroups'
+	__tablename__ = 'groups'
 	
 	id = Column(Integer, primary_key=True)
-	ad_id = Column(Integer, ForeignKey('adinfo.id'))
+	ad_id = Column(Integer, ForeignKey('domains.id'))
 	cn = Column(String, index=True)
 	dn = Column(String, index=True)
 	
@@ -42,20 +41,20 @@ class Group(Basemodel, Serializer):
 
 	def to_dict(self):
 		return {
-			'id' : self.id ,
-			'ad_id' : self.ad_id ,
-			'dn' : self.dn,
-			'sid' : self.objectSid ,
-			'objectGUID' : self.objectGUID,
-			'description' : self.description ,
-			'grouptype' : self.grouptype ,
-			'name' : self.name ,
-			'member' : self.member ,
-			'sAMAccountName' : self.sAMAccountName ,
-			'systemFlags' : self.systemFlags ,
-			'whenChanged' : self.whenChanged ,
-			'whenCreated' : self.whenCreated ,
-			'checksum' : self.checksum,
+			'id': self.id,
+			'ad_id': self.ad_id,
+			'dn': self.dn,
+			'sid': self.objectSid,
+			'objectGUID': self.objectGUID,
+			'description': self.description,
+			'grouptype': self.grouptype,
+			'name': self.name,
+			'member': self.member,
+			'sAMAccountName': self.sAMAccountName,
+			'systemFlags': self.systemFlags,
+			'whenChanged': self.whenChanged,
+			'whenCreated': self.whenCreated,
+			'checksum': self.checksum,
 		}
 
 	@staticmethod

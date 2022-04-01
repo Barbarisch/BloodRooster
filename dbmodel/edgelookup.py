@@ -1,18 +1,17 @@
-from . import Basemodel
-import datetime
-from sqlalchemy.orm import relationship
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Boolean
+from sqlalchemy import Column, Integer, String, ForeignKey
 import json
+
+from . import Basemodel
 from dbmodel.utils.serializer import Serializer
 
 
 class EdgeLookup(Basemodel, Serializer):
-	__tablename__ = 'adedgelookup'
+	__tablename__ = 'edgelookup'
 	
 	id = Column(Integer, primary_key=True)
-	ad_id = Column(Integer, ForeignKey('adinfo.id'))
-	oid = Column(String, index = True)
-	otype = Column(String, index = True)
+	ad_id = Column(Integer, ForeignKey('domains.id'))
+	oid = Column(String, index=True)
+	otype = Column(String, index=True)
 
 	def __init__(self, ad_id, oid, otype):
 		self.ad_id = int(ad_id)
@@ -30,9 +29,9 @@ class EdgeLookup(Basemodel, Serializer):
 
 	def to_dict(self):
 		return {
-			'ad_id' : self.ad_id,
-			'oid' : self.oid,
-			'otype' : self.otype,
+			'ad_id': self.ad_id,
+			'oid': self.oid,
+			'otype': self.otype,
 		}
 
 	def to_json(self):

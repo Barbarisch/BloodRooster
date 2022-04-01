@@ -48,16 +48,16 @@ class BloodRoostrWebApp:
         res = db.session.query(Group).filter_by(name=name.upper()).first()
         if res:
             return res.objectSid
-        res = db.session.query(ADUser).filter_by(name=name.upper()).first()
+        res = db.session.query(User).filter_by(name=name.upper()).first()
         if res:
             return res.objectSid
-        res = db.session.query(Machine).filter_by(name=name.upper()).first()
+        res = db.session.query(Computer).filter_by(name=name.upper()).first()
         if res:
             return res.objectSid
         res = db.session.query(GPO).filter_by(name=name.upper()).first()
         if res:
             return res.objectGUID
-        res = db.session.query(ADOU).filter_by(name=name.upper()).first()
+        res = db.session.query(Ou).filter_by(name=name.upper()).first()
         if res:
             return res.objectGUID
         return ''
@@ -67,7 +67,7 @@ class BloodRoostrWebApp:
         text = text.decode('utf-8')
         matches = []
 
-        res = db.session.query(Machine).filter(Machine.name.startswith(text.upper()))
+        res = db.session.query(Computer).filter(Computer.name.startswith(text.upper()))
         if res:
             for t in res:
                 if len(matches) <= max_return:
@@ -79,7 +79,7 @@ class BloodRoostrWebApp:
                 if len(matches) <= max_return:
                     matches.append(t.name)
 
-        res = db.session.query(ADUser).filter(ADUser.name.startswith(text.upper()))
+        res = db.session.query(User).filter(User.name.startswith(text.upper()))
         if res:
             for t in res:
                 if len(matches) <= max_return:
@@ -91,7 +91,7 @@ class BloodRoostrWebApp:
                 if len(matches) <= max_return:
                     matches.append(t.name)
 
-        res = db.session.query(ADOU).filter(ADOU.name.startswith(text.upper()))
+        res = db.session.query(Ou).filter(Ou.name.startswith(text.upper()))
         if res:
             for t in res:
                 if len(matches) <= max_return:
@@ -129,6 +129,8 @@ class BloodRoostrWebApp:
             self.path_src_to_dst(src, dst, max_depth=max_depth, edge_list=edge_list)
         elif json_data['submit_type'] == 'kerberoastable_users':
             self.kerberoastable_users()
+        elif json_data['submit_type'] == 'asreproastable_users':
+            self.asreproastable_users()
         else:
             return final
 
@@ -145,7 +147,13 @@ class BloodRoostrWebApp:
         return json.dumps(final)
 
     def kerberoastable_users(self):
-        res = db.session.query(ADUser).filter(func.length(ADUser.servicePrincipalName) > 0)
+        res = db.session.query(User).filter(func.length(User.servicePrincipalName) > 0)
+        if res:
+            for user in res:
+                self.nodes.append(make_node(user.objectSid, user.name, 'user', 0))
+
+    def asreproastable_users(self):
+        res = db.session.query(User).filter(User.UAC_DONT_REQUIRE_PREAUTH)
         if res:
             for user in res:
                 self.nodes.append(make_node(user.objectSid, user.name, 'user', 0))
@@ -246,16 +254,16 @@ class BloodRoostrWebApp:
                         new_node = db.session.query(Group).filter_by(objectSid=start.oid).first()
                         self.nodes.append(make_node(new_node.objectSid, new_node.name, 'group', depth))
                     elif start.otype == 'user':
-                        new_node = db.session.query(ADUser).filter_by(objectSid=start.oid).first()
+                        new_node = db.session.query(User).filter_by(objectSid=start.oid).first()
                         self.nodes.append(make_node(new_node.objectSid, new_node.name, 'user', depth))
                     elif start.otype == 'machine':
-                        new_node = db.session.query(Machine).filter_by(objectSid=start.oid).first()
+                        new_node = db.session.query(Computer).filter_by(objectSid=start.oid).first()
                         self.nodes.append(make_node(new_node.objectSid, new_node.name, 'computer', depth))
                     elif start.otype == 'gpo':
                         new_node = db.session.query(GPO).filter_by(objectGUID=start.oid).first()
                         self.nodes.append(make_node(new_node.objectGUID, new_node.name, 'gpo', depth))
                     elif start.otype == 'ou':
-                        new_node = db.session.query(ADOU).filter_by(objectGUID=start.oid).first()
+                        new_node = db.session.query(Ou).filter_by(objectGUID=start.oid).first()
                         self.nodes.append(make_node(new_node.objectGUID, new_node.name, 'ou', depth))
                     else:
                         print('UNKNOWN!@!!!!!!!', start.otype)
@@ -295,15 +303,15 @@ class BloodRoostrWebApp:
                 obj = db.session.query(Group).filter_by(objectSid=res.oid).first()
                 ret = self.group_display(obj)
             elif res.otype == 'user':
-                obj = db.session.query(ADUser).filter_by(objectSid=res.oid).first()
+                obj = db.session.query(User).filter_by(objectSid=res.oid).first()
                 ret = self.user_display(obj)
             elif res.otype == 'machine':
-                obj = db.session.query(Machine).filter_by(objectSid=res.oid).first()
+                obj = db.session.query(Computer).filter_by(objectSid=res.oid).first()
                 ret = self.computer_display(obj)
             elif res.otype == 'gpo':
                 obj = db.session.query(GPO).filter_by(objectGUID=res.oid).first()
             elif res.otype == 'ou':
-                obj = db.session.query(ADOU).filter_by(objectGUID=res.oid).first()
+                obj = db.session.query(Ou).filter_by(objectGUID=res.oid).first()
             else:
                 print('UNKNOWN!@!!!!!!!')
         return ret

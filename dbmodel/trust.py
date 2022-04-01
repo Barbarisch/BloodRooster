@@ -1,16 +1,15 @@
-from . import Basemodel, lf
-import hashlib
-import datetime
-from sqlalchemy.orm import relationship
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey
+import hashlib
+
+from . import Basemodel, lf
 from dbmodel.utils.serializer import Serializer
 
 
-class ADTrust(Basemodel, Serializer):
-	__tablename__ = 'adtrusts'
+class Trust(Basemodel, Serializer):
+	__tablename__ = 'trusts'
 	
 	id = Column(Integer, primary_key=True)
-	ad_id = Column(Integer, ForeignKey('adinfo.id'))
+	ad_id = Column(Integer, ForeignKey('domains.id'))
 	cn = Column(String, index=True)
 	dn = Column(String, index=True)
 	guid = Column(String, index=True)
@@ -19,14 +18,14 @@ class ADTrust(Basemodel, Serializer):
 	whenChanged = Column(DateTime)	
 	whenCreated = Column(DateTime)
 	securityIdentifier = Column(String, index=True)
-	trustDirection = Column(String, index = True)
+	trustDirection = Column(String, index=True)
 	trustPartner = Column(String, index=True)
 	trustPosixOffset = Column(Integer, index=True)
-	trustType = Column(String, index = True)
+	trustType = Column(String, index=True)
 	trustAttributes = Column(String, index=True)
 	flatName = Column(String, index=True)
 
-	checksum = Column(String, index = True)
+	checksum = Column(String, index=True)
 
 	def gen_checksum(self):
 		ctx = hashlib.md5()
@@ -44,7 +43,7 @@ class ADTrust(Basemodel, Serializer):
 
 	@staticmethod
 	def from_ldapdict(d):
-		trust = ADTrust()
+		trust = Trust()
 		trust.cn = lf(d.get('cn'))
 		trust.dn = lf(d.get('distinguishedName'))
 		trust.guid = lf(d.get('objectGUID'))

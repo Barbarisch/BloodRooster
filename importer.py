@@ -115,7 +115,7 @@ class Importer:
         # isdeleted = values['IsDeleted']
         objectid = values['ObjectIdentifier']
 
-        di = ADInfo()
+        di = Domain()
 
         if 'Properties' in objects.keys():
             values = objects['Properties']['values']
@@ -254,7 +254,7 @@ class Importer:
             objectid = values['ObjectIdentifier']
             # primarygroupsid = values['PrimaryGroupSID']
 
-            m = ADUser()
+            m = User()
             if 'Properties' in objects.keys():
                 values = objects['Properties']['values']
 
@@ -310,7 +310,7 @@ class Importer:
                                 m.servicePrincipalName = spn_str
                             else:
                                 m.servicePrincipalName = m.servicePrincipalName + '|' + spn_str
-                            new_spn = JackDawSPN.from_spn_str(spn_str, m.objectSid)
+                            new_spn = UserSPN.from_spn_str(spn_str, m.objectSid)
                             new_spn.ad_id = m.ad_id
                             self.db_session.add(new_spn)
 
@@ -349,7 +349,7 @@ class Importer:
         else:
             primarygroupsid = None
 
-        m = Machine()
+        m = Computer()
         if 'Properties' in objects.keys():
             values = objects['Properties']['values']
 
@@ -395,7 +395,7 @@ class Importer:
                             m.servicePrincipalName = spn_str
                         else:
                             m.servicePrincipalName = m.servicePrincipalName + '|' + spn_str
-                        new_spn = SPNService.from_spn_str(spn_str, m.objectSid)
+                        new_spn = ServiceSPN.from_spn_str(spn_str, m.objectSid)
                         new_spn.ad_id = m.ad_id
                         self.db_session.add(new_spn)
 
@@ -525,7 +525,7 @@ class Importer:
             # isdeleted = values['IsDeleted']
             objectid = values['ObjectIdentifier']
 
-            m = ADOU()
+            m = Ou()
 
             if 'Properties' in objects.keys():
                 values = objects['Properties']['values']
@@ -589,16 +589,16 @@ class Importer:
         pass
 
     def insert_spn_edges(self):
-        count = self.db_session.query(JackDawSPN).filter_by(service_class='MSSQLSvc').count()
+        count = self.db_session.query(UserSPN).filter_by(service_class='MSSQLSvc').count()
         iterator = tqdm(range(0, count))
 
-        q = self.db_session.query(JackDawSPN).filter_by(service_class='MSSQLSvc')
-        for spn in windowed_query(q, JackDawSPN.id, 1000):
-            s = SPNService.from_jackdaw_spn(spn)
+        q = self.db_session.query(UserSPN).filter_by(service_class='MSSQLSvc')
+        for spn in windowed_query(q, UserSPN.id, 1000):
+            s = ServiceSPN.from_userspn(spn)
             self.db_session.add(s)
             if spn.service_class == 'MSSQLSvc':
-                res = self.db_session.query(Machine).filter_by(dNSHostName=spn.computername.upper()).filter(
-                    Machine.ad_id == spn.ad_id).first()
+                res = self.db_session.query(Computer).filter_by(dNSHostName=spn.computername.upper()).filter(
+                    Computer.ad_id == spn.ad_id).first()
                 if res is not None:
                     dst = self.sid_to_id(res.objectSid, spn.ad_id)
                     src = self.sid_to_id(spn.owner_sid, spn.ad_id)

@@ -1,20 +1,19 @@
-from . import Basemodel
-import datetime
-from sqlalchemy.orm import relationship
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Boolean
+from sqlalchemy import Column, Integer, String, ForeignKey
 import json
+
+from . import Basemodel
 from dbmodel.utils.serializer import Serializer
 
 
 class Edge(Basemodel, Serializer):
-	__tablename__ = 'adedges'
+	__tablename__ = 'edges'
 	
 	id = Column(Integer, primary_key=True)
-	ad_id = Column(Integer, ForeignKey('adinfo.id'))
-	graph_id = Column(Integer, index = True)
-	src = Column(Integer, index = True)
-	dst = Column(Integer, index = True)
-	label = Column(String, index = True)
+	ad_id = Column(Integer, ForeignKey('domains.id'))
+	graph_id = Column(Integer, index=True)
+	src = Column(Integer, index=True)
+	dst = Column(Integer, index=True)
+	label = Column(String, index=True)
 
 	def __init__(self, ad_id, graph_id, src, dst, label):
 		self.ad_id = int(ad_id)
@@ -33,11 +32,11 @@ class Edge(Basemodel, Serializer):
 
 	def to_dict(self):
 		return {
-			'ad_id' : self.ad_id,
-			'graph_id' : self.graph_id,
-			'src' : self.src,
-			'dst' : self.dst,
-			'label' : self.label
+			'ad_id': self.ad_id,
+			'graph_id': self.graph_id,
+			'src': self.src,
+			'dst': self.dst,
+			'label': self.label
 		}
 
 	def to_json(self):

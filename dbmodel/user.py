@@ -1,20 +1,18 @@
 from . import Basemodel, lf, dt, bc
-from dbmodel.utils.uacflags import calc_uac_flags
-import datetime
-from sqlalchemy.orm import relationship
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Boolean
 import json
-# from jackdaw.utils.encoder import UniversalEncoder
-from dbmodel.utils.serializer import Serializer
 import hashlib
 
+from dbmodel.utils.serializer import Serializer
+from dbmodel.utils.uacflags import calc_uac_flags
 
-class ADUser(Basemodel, Serializer):
-	__tablename__ = 'adusers'
+
+class User(Basemodel, Serializer):
+	__tablename__ = 'users'
 
 	# Now for the attributes
 	id = Column(Integer, primary_key=True)
-	ad_id = Column(Integer, ForeignKey('adinfo.id'))
+	ad_id = Column(Integer, ForeignKey('domains.id'))
 	sn = Column(String)
 	cn = Column(String)
 	dn = Column(String)
@@ -105,58 +103,58 @@ class ADUser(Basemodel, Serializer):
 
 	def to_dict(self):
 		return {
-			'id' : self.id ,
-			'ad_id' : self.ad_id ,
-			'dn' : self.dn ,
-			'givenName' : self.givenName ,
-			'displayName' : self.displayName ,
-			'description' : self.description,
-			'name' : self.name ,
-			'objectSid' : self.objectSid ,
-			'sAMAccountName' : self.sAMAccountName ,
-			'userPrincipalName' : self.userPrincipalName ,
-			'servicePrincipalName' : self.servicePrincipalName ,
-			'accountExpires' : self.accountExpires ,
-			'badPasswordTime' : self.badPasswordTime ,
-			'lastLogoff' : self.lastLogoff ,
-			'lastLogon' : self.lastLogon ,
-			'lastLogonTimestamp' : self.lastLogonTimestamp ,
-			'pwdLastSet' : self.pwdLastSet ,
-			'whenChanged' : self.whenChanged ,
-			'whenCreated' : self.whenCreated ,
-			'badPwdCount' : self.badPwdCount ,
-			'logonCount' : self.logonCount ,
-			'sAMAccountType' : self.sAMAccountType ,
-			'userAccountControl' : self.userAccountControl ,
-			'codePage' : self.codePage ,
-			'countryCode' : self.countryCode ,
-			'when_pw_change' : self.when_pw_change ,
-			'when_pw_expires' : self.when_pw_expires ,
-			'must_change_pw' : self.must_change_pw ,
-			'adminCount' : self.adminCount,
-			'canLogon' : self.canLogon ,
-			'UAC_SCRIPT' : self.UAC_SCRIPT ,
-			'UAC_ACCOUNTDISABLE' : self.UAC_ACCOUNTDISABLE ,
-			'UAC_HOMEDIR_REQUIRED' : self.UAC_HOMEDIR_REQUIRED ,
-			'UAC_LOCKOUT' : self.UAC_LOCKOUT ,
-			'UAC_PASSWD_NOTREQD' : self.UAC_PASSWD_NOTREQD ,
-			'UAC_PASSWD_CANT_CHANGE' : self.UAC_PASSWD_CANT_CHANGE ,
-			'UAC_ENCRYPTED_TEXT_PASSWORD_ALLOWED' : self.UAC_ENCRYPTED_TEXT_PASSWORD_ALLOWED ,
-			'UAC_TEMP_DUPLICATE_ACCOUNT' : self.UAC_TEMP_DUPLICATE_ACCOUNT ,
-			'UAC_NORMAL_ACCOUNT' : self.UAC_NORMAL_ACCOUNT ,
-			'UAC_INTERDOMAIN_TRUST_ACCOUNT' : self.UAC_INTERDOMAIN_TRUST_ACCOUNT ,
-			'UAC_WORKSTATION_TRUST_ACCOUNT' : self.UAC_WORKSTATION_TRUST_ACCOUNT ,
-			'UAC_SERVER_TRUST_ACCOUNT' : self.UAC_SERVER_TRUST_ACCOUNT ,
-			'UAC_DONT_EXPIRE_PASSWD' : self.UAC_DONT_EXPIRE_PASSWD ,
-			'UAC_MNS_LOGON_ACCOUNT' : self.UAC_MNS_LOGON_ACCOUNT ,
-			'UAC_SMARTCARD_REQUIRED' : self.UAC_SMARTCARD_REQUIRED ,
-			'UAC_TRUSTED_FOR_DELEGATION' : self.UAC_TRUSTED_FOR_DELEGATION ,
-			'UAC_NOT_DELEGATED' : self.UAC_NOT_DELEGATED ,
-			'UAC_USE_DES_KEY_ONLY' : self.UAC_USE_DES_KEY_ONLY ,
-			'UAC_DONT_REQUIRE_PREAUTH' : self.UAC_DONT_REQUIRE_PREAUTH ,
-			'UAC_PASSWORD_EXPIRED' : self.UAC_PASSWORD_EXPIRED ,
-			'UAC_TRUSTED_TO_AUTHENTICATE_FOR_DELEGATION' : self.UAC_TRUSTED_TO_AUTHENTICATE_FOR_DELEGATION ,
-			'checksum' : self.checksum,
+			'id': self.id,
+			'ad_id': self.ad_id,
+			'dn': self.dn,
+			'givenName': self.givenName,
+			'displayName': self.displayName,
+			'description': self.description,
+			'name': self.name,
+			'objectSid': self.objectSid,
+			'sAMAccountName': self.sAMAccountName,
+			'userPrincipalName': self.userPrincipalName,
+			'servicePrincipalName': self.servicePrincipalName,
+			'accountExpires': self.accountExpires,
+			'badPasswordTime': self.badPasswordTime,
+			'lastLogoff': self.lastLogoff,
+			'lastLogon': self.lastLogon,
+			'lastLogonTimestamp': self.lastLogonTimestamp,
+			'pwdLastSet': self.pwdLastSet,
+			'whenChanged': self.whenChanged,
+			'whenCreated': self.whenCreated,
+			'badPwdCount': self.badPwdCount,
+			'logonCount': self.logonCount,
+			'sAMAccountType': self.sAMAccountType,
+			'userAccountControl': self.userAccountControl,
+			'codePage': self.codePage,
+			'countryCode': self.countryCode,
+			'when_pw_change': self.when_pw_change,
+			'when_pw_expires': self.when_pw_expires,
+			'must_change_pw': self.must_change_pw,
+			'adminCount': self.adminCount,
+			'canLogon': self.canLogon,
+			'UAC_SCRIPT': self.UAC_SCRIPT,
+			'UAC_ACCOUNTDISABLE': self.UAC_ACCOUNTDISABLE,
+			'UAC_HOMEDIR_REQUIRED': self.UAC_HOMEDIR_REQUIRED,
+			'UAC_LOCKOUT': self.UAC_LOCKOUT,
+			'UAC_PASSWD_NOTREQD': self.UAC_PASSWD_NOTREQD,
+			'UAC_PASSWD_CANT_CHANGE': self.UAC_PASSWD_CANT_CHANGE,
+			'UAC_ENCRYPTED_TEXT_PASSWORD_ALLOWED': self.UAC_ENCRYPTED_TEXT_PASSWORD_ALLOWED,
+			'UAC_TEMP_DUPLICATE_ACCOUNT': self.UAC_TEMP_DUPLICATE_ACCOUNT,
+			'UAC_NORMAL_ACCOUNT': self.UAC_NORMAL_ACCOUNT,
+			'UAC_INTERDOMAIN_TRUST_ACCOUNT': self.UAC_INTERDOMAIN_TRUST_ACCOUNT,
+			'UAC_WORKSTATION_TRUST_ACCOUNT': self.UAC_WORKSTATION_TRUST_ACCOUNT,
+			'UAC_SERVER_TRUST_ACCOUNT': self.UAC_SERVER_TRUST_ACCOUNT,
+			'UAC_DONT_EXPIRE_PASSWD': self.UAC_DONT_EXPIRE_PASSWD,
+			'UAC_MNS_LOGON_ACCOUNT': self.UAC_MNS_LOGON_ACCOUNT,
+			'UAC_SMARTCARD_REQUIRED': self.UAC_SMARTCARD_REQUIRED,
+			'UAC_TRUSTED_FOR_DELEGATION': self.UAC_TRUSTED_FOR_DELEGATION,
+			'UAC_NOT_DELEGATED': self.UAC_NOT_DELEGATED,
+			'UAC_USE_DES_KEY_ONLY': self.UAC_USE_DES_KEY_ONLY,
+			'UAC_DONT_REQUIRE_PREAUTH': self.UAC_DONT_REQUIRE_PREAUTH,
+			'UAC_PASSWORD_EXPIRED': self.UAC_PASSWORD_EXPIRED,
+			'UAC_TRUSTED_TO_AUTHENTICATE_FOR_DELEGATION': self.UAC_TRUSTED_TO_AUTHENTICATE_FOR_DELEGATION,
+			'checksum': self.checksum,
 		}
 
 	def to_json(self):
@@ -164,7 +162,7 @@ class ADUser(Basemodel, Serializer):
 
 	@staticmethod
 	def from_aduser(u):
-		user = ADUser()
+		user = User()
 		user.sn = u.sn
 		user.cn = u.cn
 		user.dn = u.distinguishedName
@@ -207,7 +205,7 @@ class ADUser(Basemodel, Serializer):
 		user.must_change_pw = dt(u.must_change_pw)
 		user.adminCount = u.admincount
 		user.canLogon = bc(u.canLogon)
-		user.isAdmin = bc(getattr(u,'isAdmin', None))
+		user.isAdmin = bc(getattr(u, 'isAdmin', None))
 		calc_uac_flags(user)
 		user.gen_checksum()
 		return user

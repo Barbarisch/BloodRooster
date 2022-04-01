@@ -1,14 +1,15 @@
-from . import Basemodel
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Boolean
+from sqlalchemy import Column, Integer, String, ForeignKey
 import json
+
+from . import Basemodel
 from dbmodel.utils.serializer import Serializer
 
 
 class Ace(Basemodel, Serializer):
-    __tablename__ = 'adaces'
+    __tablename__ = 'aces'
 
     id = Column(Integer, primary_key=True)
-    ad_id = Column(Integer, ForeignKey('adinfo.id'))
+    ad_id = Column(Integer, ForeignKey('domains.id'))
     graph_id = Column(Integer, index=True)
     src_sid = Column(String)
     dst_sid = Column(String)

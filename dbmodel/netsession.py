@@ -1,8 +1,7 @@
+from sqlalchemy import Index, func, Column, Integer, String
+
 from . import Basemodel
-import datetime
-from sqlalchemy import Column, Integer, String, DateTime
 from dbmodel.utils.serializer import Serializer
-from sqlalchemy import Index, func
 
 
 class NetSession(Basemodel, Serializer):

@@ -1,7 +1,6 @@
-from . import Basemodel
-import datetime
-from sqlalchemy import Column, Integer, String, DateTime
+from sqlalchemy import Column, Integer, String
 
+from . import Basemodel
 from dbmodel.utils.serializer import Serializer
 
 

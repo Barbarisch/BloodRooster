@@ -1,6 +1,6 @@
+from sqlalchemy import Column, Integer, String
+
 from . import Basemodel
-import datetime
-from sqlalchemy import Column, Integer, String, DateTime
 from dbmodel.utils.serializer import Serializer
 
 
@@ -19,13 +19,13 @@ class NetShare(Basemodel, Serializer):
 
 	def to_dict(self):
 		return {
-			'id' : self.id , 
-			'machine_sid' : self.machine_sid , 
-			'ip' : self.ip , 
-			'rdns' : self.rdns , 
-			'netname' : self.netname , 
-			'type' : self.type , 
-			'remark' : self.remark , 
-			'passwd' : self.passwd ,
+			'id': self.id,
+			'machine_sid': self.machine_sid,
+			'ip': self.ip,
+			'rdns': self.rdns,
+			'netname': self.netname,
+			'type': self.type,
+			'remark': self.remark,
+			'passwd': self.passwd,
 		}
 	
