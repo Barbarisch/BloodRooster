@@ -318,21 +318,30 @@ class BloodRoostrWebApp:
 
     def group_display(self, obj):
         ret = group_table
-        ret = ret.replace('{{Name}}', obj.name)
-        ret = ret.replace('{{Sid}}', obj.objectSid)
-        ret = ret.replace('{{Description}}', obj.description)
+        try:
+            ret = ret.replace('{{Name}}', obj.name)
+            ret = ret.replace('{{Sid}}', obj.objectSid)
+            ret = ret.replace('{{Description}}', obj.description)
+        except:
+            pass
         return ret
 
     def user_display(self, obj):
         ret = group_table
-        ret = ret.replace('{{Name}}', obj.name)
-        ret = ret.replace('{{Sid}}', obj.objectSid)
-        ret = ret.replace('{{Description}}', obj.description)
+        try:
+            ret = ret.replace('{{Name}}', obj.name)
+            ret = ret.replace('{{Sid}}', obj.objectSid)
+            ret = ret.replace('{{Description}}', obj.description)
+        except:
+            pass
         return ret
 
     def computer_display(self, obj):
         ret = group_table
-        ret = ret.replace('{{Name}}', obj.name)
-        ret = ret.replace('{{Sid}}', obj.objectSid)
-        ret = ret.replace('{{Description}}', obj.description)
+        try:
+            ret = ret.replace('{{Name}}', obj.name)
+            ret = ret.replace('{{Sid}}', obj.objectSid)
+            ret = ret.replace('{{Description}}', obj.description)
+        except:
+            pass
         return ret
