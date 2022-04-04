@@ -39,9 +39,9 @@ def set_sqlite_pragma(dbapi_connection, connection_record):
 	Sadly I could not find a way to limit the execution to sqlite so other DBs will trow an error :(
 	TODO: fix this
 	"""
-	is_sqlite = os.getenv('JACKDAW_SQLITE', '0')
-	if is_sqlite == '0':
-		return
+	# is_sqlite = os.getenv('JACKDAW_SQLITE', '0')
+	# if is_sqlite == '0':
+	#	return
 	cursor = dbapi_connection.cursor()
 	cursor.execute("PRAGMA journal_mode = MEMORY")
 	cursor.execute("PRAGMA synchronous = OFF")
@@ -101,11 +101,13 @@ from .computer import *
 from .user import *
 from .ou import *
 from .gpo import *
+from .container import *
 from .gplink import *
 from .trust import *
 from .spn import *
 from .ace import Ace
 from .member import Member
+from .childobject import ChildObject
 from .session import Session
 from .edge import Edge
 from .edgelookup import EdgeLookup

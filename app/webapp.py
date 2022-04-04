@@ -2,8 +2,8 @@ from sqlalchemy.sql.expression import func
 
 from app import db
 from dbmodel import *
-from utils import make_node, make_edge, group_display, user_display, computer_display, ou_display, gpo_display
-from utils import user_list_display
+from .utils import make_node, make_edge, group_display, user_display, computer_display, ou_display, gpo_display
+from .utils import user_list_display
 
 
 class BloodRoostrWebApp:
@@ -232,6 +232,9 @@ class BloodRoostrWebApp:
                     elif start.otype == 'ou':
                         new_node = db.session.query(Ou).filter_by(objectGUID=start.oid).first()
                         self.nodes.append(make_node(new_node.objectGUID, new_node.name, 'ou', depth))
+                    elif start.otype == 'container':
+                        new_node = db.session.query(Container).filter_by(objectGUID=start.oid).first()
+                        self.nodes.append(make_node(new_node.objectGUID, new_node.name, 'container', depth))
                     else:
                         print('UNKNOWN!@!!!!!!!', start.otype)
                     id_sid_map[start.id] = start.oid

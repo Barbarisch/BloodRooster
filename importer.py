@@ -547,24 +547,6 @@ class Importer:
                 if 'whencreated' in values:
                     m.whenCreated = convert_to_dt(values['whencreated'])
 
-            if 'Links' in arrays.keys():
-                pass
-                # TODO GPO Links!!!!!
-                # l = Gplink()
-                # l.ad_id = m.ad_id
-                # l.ou_guid = m.objectGUID
-                # if self.bloodhound_version == '2':
-                #    gponame = link['Name'].split('@', 1)[0]
-                #    res = self.db_session.query(GPO).filter_by(name=gponame).filter(GPO.ad_id == m.ad_id).first()
-                #    if res is None:
-                #        logger.debug(
-                #            'Could not insert OU link %s. Reason: could not find GPO %s' % (link, link['Name']))
-                #        continue
-                #    l.gpo_dn = res.objectGUID
-                # else:
-                #    l.gpo_dn = '{%s}' % link['Guid']
-                # self.db_session.add(l)
-
             self.db_session.add(m)
             edgeinfo = EdgeLookup(m.ad_id, objectid, 'ou')
             self.db_session.add(edgeinfo)
@@ -575,12 +557,84 @@ class Importer:
                 if len(arrays['Aces']) > 0:
                     self.add_aces(bh_version, m.ad_id, objectid, arrays['Aces']['objects'])
 
+            if 'Links' in arrays.keys():
+                if len(arrays['Links']) > 0:
+                    links = arrays['Links']['objects']
+                    for _, link in links.items():
+                        values = link['values']
+                        if bh_version == 4:
+                            gpo_guid = values['ObjectIdentifier']
+                            newgplink = Gplink(m.ad_id, self.graphid, objectid, gpo_guid)
+                            self.db_session.add(newgplink)
+
+            if 'ChildObjects' in arrays.keys():
+                if len(arrays['ChildObjects']) > 0:
+                    childobjects = arrays['ChildObjects']['objects']
+                    for _, child in childobjects.items():
+                        values = child['values']
+                        if bh_version == 4:
+                            child_id = values['ObjectIdentifier']
+                            child_type = values['ObjectType']
+                            newchild = ChildObject(m.ad_id, self.graphid, objectid, child_id, child_type)
+                            self.db_session.add(newchild)
+
             self.db_session.commit()
         except Exception as ex:
             print('import_ou_v4', ex)
 
     def import_container_v4(self, bh_version, entries):
-        pass
+        try:
+            objects = entries['objects']
+            arrays = entries['arrays']
+            values = entries['values']
+
+            if 'ObjectIdentifier' not in values:
+                return
+
+            # isaclprotected = values['IsACLProtected']
+            # isdeleted = values['IsDeleted']
+            objectid = values['ObjectIdentifier']
+
+            m = Container()
+
+            if 'Properties' in objects.keys():
+                values = objects['Properties']['values']
+
+                ad_name = values['domain'].lower()
+                if ad_name not in self.adn:
+                    # print('TODO', values, objectid)
+                    # input()
+                    return
+                m.ad_id = self.adn[ad_name]
+                m.name = values['name'].split('@', 1)[0]
+                m.objectGUID = objectid
+                if values['distinguishedname']:
+                    m.dn = values['distinguishedname']
+
+            self.db_session.add(m)
+            edgeinfo = EdgeLookup(m.ad_id, objectid, 'container')
+            self.db_session.add(edgeinfo)
+            self.db_session.commit()
+
+            # add aces to global Ace table (these will be turned into edges later)
+            if 'Aces' in arrays.keys():
+                if len(arrays['Aces']) > 0:
+                    self.add_aces(bh_version, m.ad_id, objectid, arrays['Aces']['objects'])
+
+            if 'ChildObjects' in arrays.keys():
+                if len(arrays['ChildObjects']) > 0:
+                    childobjects = arrays['ChildObjects']['objects']
+                    for _, child in childobjects.items():
+                        values = child['values']
+                        if bh_version == 4:
+                            child_id = values['ObjectIdentifier']
+                            child_type = values['ObjectType']
+                            newchild = ChildObject(m.ad_id, self.graphid, objectid, child_id, child_type)
+                            self.db_session.add(newchild)
+
+            self.db_session.commit()
+        except Exception as ex:
+            print('import_container_v4', ex)
 
     def import_session(self):
         pass
@@ -619,6 +673,32 @@ class Importer:
             dst = self.sid_to_id(member.group_sid, member.ad_id)
             src = self.sid_to_id(member.member_sid, member.ad_id)
             edge = Edge(member.ad_id, self.graphid, src, dst, 'member')
+            self.db_session.add(edge)
+            iterator.update(1)
+        self.db_session.commit()
+
+    def insert_childobjects_edges(self):
+        count = self.db_session.query(ChildObject).count()
+        iterator = tqdm(range(0, count))
+
+        q = self.db_session.query(ChildObject)
+        for childobject in windowed_query(q, ChildObject.id, 1000):
+            dst = self.sid_to_id(childobject.container_id, childobject.ad_id)
+            src = self.sid_to_id(childobject.child_id, childobject.ad_id)
+            edge = Edge(childobject.ad_id, self.graphid, src, dst, 'childobject')
+            self.db_session.add(edge)
+            iterator.update(1)
+        self.db_session.commit()
+
+    def insert_gplink_edges(self):
+        count = self.db_session.query(Gplink).count()
+        iterator = tqdm(range(0, count))
+
+        q = self.db_session.query(Gplink)
+        for link in windowed_query(q, Gplink.id, 1000):
+            dst = self.sid_to_id(link.ou_guid, link.ad_id)
+            src = self.sid_to_id(link.gpo_uid, link.ad_id)
+            edge = Edge(link.ad_id, self.graphid, src, dst, 'gplink')
             self.db_session.add(edge)
             iterator.update(1)
         self.db_session.commit()
@@ -684,40 +764,50 @@ class Importer:
         #print('pause')
         #input()
 
-        print(f'Processing groups json {all_json_files["groups"]}')
-        with open(all_json_files['groups'][1], 'r') as f:
-            self.json_parser.json_parser2(all_json_files['groups'][0], f)
+        if 'groups' in all_json_files:
+            print(f'Processing groups json {all_json_files["groups"]}')
+            with open(all_json_files['groups'][1], 'r') as f:
+                self.json_parser.json_parser2(all_json_files['groups'][0], f)
 
         #print('pause')
         #input()
 
-        print(f'Processing users json {all_json_files["users"]}')
-        with open(all_json_files['users'][1], 'r') as f:
-            self.json_parser.json_parser2(all_json_files['users'][0], f)
+        if 'users' in all_json_files:
+            print(f'Processing users json {all_json_files["users"]}')
+            with open(all_json_files['users'][1], 'r') as f:
+                self.json_parser.json_parser2(all_json_files['users'][0], f)
 
         #print('pause')
         #input()
 
-        print(f'Processing computers json {all_json_files["computers"]}')
-        with open(all_json_files['computers'][1], 'r') as f:
-            self.json_parser.json_parser2(all_json_files['computers'][0], f)
+        if 'computers' in all_json_files:
+            print(f'Processing computers json {all_json_files["computers"]}')
+            with open(all_json_files['computers'][1], 'r') as f:
+                self.json_parser.json_parser2(all_json_files['computers'][0], f)
 
         #print('pause')
         #input()
 
-        print(f'Processing gpos json {all_json_files["gpos"]}')
-        with open(all_json_files['gpos'][1], 'r') as f:
-            self.json_parser.json_parser2(all_json_files['gpos'][0], f)
+        if 'gpos' in all_json_files:
+            print(f'Processing gpos json {all_json_files["gpos"]}')
+            with open(all_json_files['gpos'][1], 'r') as f:
+                self.json_parser.json_parser2(all_json_files['gpos'][0], f)
 
         #print('pause')
         #input()
 
-        print(f'Processing ous json {all_json_files["ous"]}')
-        with open(all_json_files['ous'][1], 'r') as f:
-            self.json_parser.json_parser2(all_json_files['ous'][0], f)
+        if 'ous' in all_json_files:
+            print(f'Processing ous json {all_json_files["ous"]}')
+            with open(all_json_files['ous'][1], 'r') as f:
+                self.json_parser.json_parser2(all_json_files['ous'][0], f)
 
         #print('pause')
         #input()
+
+        if 'containers' in all_json_files:
+            print(f'Processing containers json {all_json_files["containers"]}')
+            with open(all_json_files['containers'][1], 'r') as f:
+                self.json_parser.json_parser2(all_json_files['containers'][0], f)
 
         # create edges
         # print('Creating edges from Sessions')
@@ -726,6 +816,10 @@ class Importer:
         self.insert_spn_edges()
         print('Creating edges from group memberships')
         self.insert_members_edges()
+        print('Creating edges from childobjects')
+        self.insert_childobjects_edges()
+        print('Creating edges from gplinks')
+        self.insert_gplink_edges()
         print('Creating edges from aces')
         self.insert_ace_edges()
 
