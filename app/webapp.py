@@ -2,39 +2,7 @@ from sqlalchemy.sql.expression import func
 
 from app import db
 from dbmodel import *
-
-group_table = ''' <table class="table">
-  <thead>
-    <tr>
-      <th scope="col"></th>
-      <th scope="col"></th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <th scope="row">Name</th>
-      <td>{{Name}}</td>
-    </tr>
-    <tr>
-      <th scope="row">SID</th>
-      <td>{{Sid}}</td>
-    </tr>
-    <tr>
-      <th scope="row">Description</th>
-      <td>{{Description}}</td>
-    </tr>
-  </tbody>
-</table> '''
-
-
-def make_node(node_id, node_name, node_type, depth=0):
-    # print('Adding node', node_id, node_name)
-    return {'id': node_id, 'name': node_name, 'type': node_type, 'group': depth}
-
-
-def make_edge(edge_id, edge_from, edge_to, edge_label):
-    # print('Adding edge', edge_from, edge_to, edge_label)
-    return {'id': edge_id, 'from': edge_from, 'to': edge_to, 'label': edge_label}
+from utils import make_node, make_edge, group_display, user_display, computer_display, ou_display, gpo_display
 
 
 class BloodRoostrWebApp:
@@ -301,47 +269,19 @@ class BloodRoostrWebApp:
         if res:
             if res.otype == 'group':
                 obj = db.session.query(Group).filter_by(objectSid=res.oid).first()
-                ret = self.group_display(obj)
+                ret = group_display(obj)
             elif res.otype == 'user':
                 obj = db.session.query(User).filter_by(objectSid=res.oid).first()
-                ret = self.user_display(obj)
+                ret = user_display(obj)
             elif res.otype == 'machine':
                 obj = db.session.query(Computer).filter_by(objectSid=res.oid).first()
-                ret = self.computer_display(obj)
+                ret = computer_display(obj)
             elif res.otype == 'gpo':
                 obj = db.session.query(GPO).filter_by(objectGUID=res.oid).first()
+                ret = gpo_display(obj)
             elif res.otype == 'ou':
                 obj = db.session.query(Ou).filter_by(objectGUID=res.oid).first()
+                ret = ou_display(obj)
             else:
                 print('UNKNOWN!@!!!!!!!')
-        return ret
-
-    def group_display(self, obj):
-        ret = group_table
-        try:
-            ret = ret.replace('{{Name}}', obj.name)
-            ret = ret.replace('{{Sid}}', obj.objectSid)
-            ret = ret.replace('{{Description}}', obj.description)
-        except:
-            pass
-        return ret
-
-    def user_display(self, obj):
-        ret = group_table
-        try:
-            ret = ret.replace('{{Name}}', obj.name)
-            ret = ret.replace('{{Sid}}', obj.objectSid)
-            ret = ret.replace('{{Description}}', obj.description)
-        except:
-            pass
-        return ret
-
-    def computer_display(self, obj):
-        ret = group_table
-        try:
-            ret = ret.replace('{{Name}}', obj.name)
-            ret = ret.replace('{{Sid}}', obj.objectSid)
-            ret = ret.replace('{{Description}}', obj.description)
-        except:
-            pass
         return ret
