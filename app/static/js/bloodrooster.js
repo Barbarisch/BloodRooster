@@ -8,11 +8,6 @@ var network = null;
 
 // draw a vis.js network given json formatted string containing nodes and edges
 function draw(jsonstr='') {
-    var computer_path = "static/images/computer.png";
-    var user_path = "static/images/user.png";
-    var group_path = "static/images/group.png";
-    var unknown_path = "static/images/unknown.png";
-
     nodes = [];
     edges = [];
 
@@ -31,20 +26,7 @@ function draw(jsonstr='') {
                 id = value.id;
                 label = value.name;
                 group = value.group;
-                switch(value.type) {
-                    case "computer":
-                        image = computer_path;
-                        break;
-                    case "user":
-                        image = user_path;
-                        break;
-                    case "group":
-                        image = group_path;
-                        break;
-                    default:
-                        image = unknown_path;
-                        break;
-                }
+                image = getImagePathForNode(value.type);
                 nodes.push({
                     id: id,
                     label: label,
@@ -142,6 +124,43 @@ function draw(jsonstr='') {
             left: params.event.pageX + "px"
         });
     });
+}
+
+function getImagePathForNode(nodetype='') {
+    var computer_path = "static/images/computer.png";
+    var user_path = "static/images/user.png";
+    var group_path = "static/images/group.png";
+    var ou_path = 'static/images/organizational.png';
+    var group_policy_path = 'static/images/group_policy.png'
+    var user_list_path = 'static/images/user_list.png';
+    var unknown_path = "static/images/unknown.png";
+
+    image = unknown_path;
+
+    switch(nodetype) {
+        case "computer":
+            image = computer_path;
+            break;
+        case "user":
+            image = user_path;
+            break;
+        case "group":
+            image = group_path;
+            break;
+        case "ou":
+            image = ou_path;
+            break;
+        case "group_policy":
+            image = group_policy_path;
+            break;
+        case "user_list":
+            image = user_list_path;
+            break;
+        default:
+            image = unknown_path;
+            break;
+    }
+    return image;
 }
 
 // toggle showing the vis.js config options

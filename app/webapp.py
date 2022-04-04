@@ -3,6 +3,7 @@ from sqlalchemy.sql.expression import func
 from app import db
 from dbmodel import *
 from utils import make_node, make_edge, group_display, user_display, computer_display, ou_display, gpo_display
+from utils import user_list_display
 
 
 class BloodRoostrWebApp:
@@ -117,14 +118,12 @@ class BloodRoostrWebApp:
     def kerberoastable_users(self):
         res = db.session.query(User).filter(func.length(User.servicePrincipalName) > 0)
         if res:
-            for user in res:
-                self.nodes.append(make_node(user.objectSid, user.name, 'user', 0))
+            self.nodes.append(make_node('kerberoastable', 'Kerberoastable', 'user_list', 0))
 
     def asreproastable_users(self):
         res = db.session.query(User).filter(User.UAC_DONT_REQUIRE_PREAUTH)
         if res:
-            for user in res:
-                self.nodes.append(make_node(user.objectSid, user.name, 'user', 0))
+            self.nodes.append(make_node('asreproastable', 'AS-REP Roastable', 'user_list', 0))
 
     def path_to_dst(self, oid, max_depth=5, edge_list=None):
         self.add_node_recursive([oid], max_depth=max_depth, edge_list=edge_list)
@@ -261,27 +260,36 @@ class BloodRoostrWebApp:
         if len(new_nodes) > 0:
             self.add_node_recursive(new_nodes, depth+1, edge_list=edge_list)
 
-    def get_extended_info(self, oid):
+    def get_extended_info(self, nodeid):
         ret = ''
-        oid = oid.decode('utf-8')
+        nodeid = nodeid.decode('utf-8')
 
-        res = db.session.query(EdgeLookup).filter_by(oid=oid).first()  # get id and typefrom sid
-        if res:
-            if res.otype == 'group':
-                obj = db.session.query(Group).filter_by(objectSid=res.oid).first()
-                ret = group_display(obj)
-            elif res.otype == 'user':
-                obj = db.session.query(User).filter_by(objectSid=res.oid).first()
-                ret = user_display(obj)
-            elif res.otype == 'machine':
-                obj = db.session.query(Computer).filter_by(objectSid=res.oid).first()
-                ret = computer_display(obj)
-            elif res.otype == 'gpo':
-                obj = db.session.query(GPO).filter_by(objectGUID=res.oid).first()
-                ret = gpo_display(obj)
-            elif res.otype == 'ou':
-                obj = db.session.query(Ou).filter_by(objectGUID=res.oid).first()
-                ret = ou_display(obj)
-            else:
-                print('UNKNOWN!@!!!!!!!')
+        if nodeid == 'kerberoastable':
+            res = db.session.query(User).filter(func.length(User.servicePrincipalName) > 0)
+            if res:
+                ret = user_list_display(res)
+        elif nodeid == 'asreproastable':
+            res = db.session.query(User).filter(User.UAC_DONT_REQUIRE_PREAUTH)
+            if res:
+                ret = user_list_display(res)
+        else:
+            res = db.session.query(EdgeLookup).filter_by(oid=nodeid).first()  # get id and typefrom sid
+            if res:
+                if res.otype == 'group':
+                    obj = db.session.query(Group).filter_by(objectSid=res.oid).first()
+                    ret = group_display(obj)
+                elif res.otype == 'user':
+                    obj = db.session.query(User).filter_by(objectSid=res.oid).first()
+                    ret = user_display(obj)
+                elif res.otype == 'machine':
+                    obj = db.session.query(Computer).filter_by(objectSid=res.oid).first()
+                    ret = computer_display(obj)
+                elif res.otype == 'gpo':
+                    obj = db.session.query(GPO).filter_by(objectGUID=res.oid).first()
+                    ret = gpo_display(obj)
+                elif res.otype == 'ou':
+                    obj = db.session.query(Ou).filter_by(objectGUID=res.oid).first()
+                    ret = ou_display(obj)
+                else:
+                    print('UNKNOWN!@!!!!!!!')
         return ret

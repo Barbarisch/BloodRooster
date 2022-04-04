@@ -136,3 +136,11 @@ def gpo_display(obj):
     if obj.path and len(obj.path) > 0:
         ret = ret + create_extended_info_item('Path', obj.path)
     return ret + extended_info_template_end
+
+
+def user_list_display(objs):
+    ret = extended_info_template_start
+    for obj in objs:
+        if isinstance(obj, User):
+            ret = ret + create_extended_info_item(obj.name, obj.objectSid)
+    return ret + extended_info_template_end
