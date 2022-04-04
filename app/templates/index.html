@@ -199,26 +199,25 @@
         <div style="width: 100%">
             <div id="mynetwork" style="width: 70%; height: 100px; float: left;"></div>
             <div style="width: 20%; height: 100px; float: left;"><br>
-                <label for="src">Source</label><br>
-                <form autocomplete="off">
-                    <div class="autocomplete">
-                        <input type="text" id="src" name="src"><br><br>
-                    </div>
-                </form>
-                <label for="dst">Destination</label><br>
-                <form autocomplete="off">
-                    <div class="autocomplete">
-                        <input type="text" id="dst" name="dst"><br><br>
-                    </div>
-                </form>
-                <label for="submit_type"></label><br>
-                <select id="submit_type" name="submit_type">
+                <select id="submit_type" name="submit_type" onchange="draw_inputs()">
                     <option value="shortest_path_src">Shortest Path to source</option>
                     <option value="shortest_path_dst">Shortest Path to destination</option>
                     <option value="shortest_path_src_dst">Shortest Path from source to destination</option>
                     <option value="kerberoastable_users">Get all kerberoastable users</option>
                     <option value="asreproastable_users">Get all AS-REP roastable users</option>
                 </select><br><br>
+                <form autocomplete="off" id="src_form" style="display: block;">
+                    <label for="src">Source</label><br>
+                    <div class="autocomplete">
+                        <input type="text" id="src" name="src"><br><br>
+                    </div>
+                </form>
+                <form autocomplete="off" id="dst_form" style="display: none;">
+                    <label for="dst">Destination</label><br>
+                    <div class="autocomplete">
+                        <input type="text" id="dst" name="dst"><br><br>
+                    </div>
+                </form>
                 <input id="submit_button" type="submit" value="Submit" onclick="submit_clicked()"><br><br>
                 <input id="submit_button2" type="submit" value="TEST" onclick="test_clicked()"><br><br>
                 <button id="edgetogglebutton" onclick="showEdgeToggle()">Edge toggle →</button><br><br>

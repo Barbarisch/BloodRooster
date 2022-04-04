@@ -132,6 +132,7 @@ function getImagePathForNode(nodetype='') {
     var group_path = "static/images/group.png";
     var ou_path = 'static/images/organizational.png';
     var group_policy_path = 'static/images/group_policy.png'
+    var container_path = 'static/images/container.png';
     var user_list_path = 'static/images/user_list.png';
     var unknown_path = "static/images/unknown.png";
 
@@ -153,6 +154,9 @@ function getImagePathForNode(nodetype='') {
         case "group_policy":
             image = group_policy_path;
             break;
+        case "container":
+            image = container_path;
+            break;
         case "user_list":
             image = user_list_path;
             break;
@@ -161,6 +165,29 @@ function getImagePathForNode(nodetype='') {
             break;
     }
     return image;
+}
+
+function draw_inputs() {
+    var submit_type = $('#submit_type').val()
+
+    // hide all input divs
+    document.getElementById("src_form").style.display = "none";
+    document.getElementById("dst_form").style.display = "none";
+
+    switch(submit_type) {
+        case "shortest_path_src":
+            document.getElementById("src_form").style.display = "block";
+            break;
+        case "shortest_path_dst":
+            document.getElementById("dst_form").style.display = "block";
+            break;
+        case "shortest_path_src_dst":
+            document.getElementById("src_form").style.display = "block";
+            document.getElementById("dst_form").style.display = "block";
+            break;
+        default:
+            break;
+    }
 }
 
 // toggle showing the vis.js config options
