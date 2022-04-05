@@ -3,7 +3,6 @@ import zipfile
 import sys
 import random
 import time
-import datetime
 
 from dbmodel import *
 
@@ -40,9 +39,8 @@ class Importer:
         self.db_session = db_session
         self.json_parser = JsonParser(self)
         self.gi = None
-        self.graphid = 0
 
-        self.ads = {}
+        self.ads = {}  # sid -> ad_id
         self.adn = {}  # name -> ad_id
 
         random.seed(time.time())
@@ -56,6 +54,24 @@ class Importer:
         max_ = 4294967295
         rand = random.randint(min_, max_)
         return rand
+
+    def get_adid_by_name(self, name):
+        if name in self.adn:
+            return self.adn[name]
+        else:
+            q = self.db_session.query(Domain).filter_by(name=name).first()
+            if q:
+                return q.id
+        return None
+
+    def get_adid_by_sid(self, sid):
+        if sid in self.ads:
+            return self.ads[sid]
+        else:
+            q = self.db_session.query(Domain).filter_by(objectSid=sid).first()
+            if q:
+                return q.id
+        return None
 
     def sid_to_id(self, sid, adid, objtype='unknown'):
         res = self.db_session.query(EdgeLookup).filter_by(oid=sid).filter(EdgeLookup.ad_id == adid).first()
@@ -103,7 +119,7 @@ class Importer:
                     label = values['RightName']
             else:
                 label = values['RightName']
-            newace = Ace(ad_id, self.graphid, objectid, dst, dst_type, label)
+            newace = Ace(ad_id, objectid, dst, dst_type, label)
             self.db_session.add(newace)
 
     def import_domain_v4(self, bh_version, entries):
@@ -131,18 +147,13 @@ class Importer:
         self.db_session.add(di)
         self.db_session.commit()
         self.db_session.refresh(di)
-        self.ad_id = di.id
 
-        edgeinfo = EdgeLookup(self.ad_id, objectid, 'domain')
+        edgeinfo = EdgeLookup(di.id, objectid, 'domain')
         self.db_session.add(edgeinfo)
         self.db_session.commit()
 
         self.ads[objectid] = di.id
-        self.adn[di.name.lower()] = di.id
-
-        giad = GraphInfoAD(self.ad_id, self.graphid)
-        self.db_session.add(giad)
-        self.db_session.commit()
+        self.adn[di.name] = di.id
 
         # add aces to global Ace table (these will be turned into edges later)
         if 'Aces' in arrays.keys():
@@ -178,24 +189,18 @@ class Importer:
                 values = objects['Properties']['values']
 
                 if 'domainsid' in values:
-                    m.ad_id = self.ads[values['domainsid']]
-                else:
-                    domain_name = values['domain'].lower()
-                    if domain_name not in self.adn:
-                        # print('TODO', values, objectid)
-                        # input()
-                        # TODO...domain trusts maybe
-                        return
-                    m.ad_id = self.adn[domain_name]
+                    m.ad_id = self.get_adid_by_sid(values['domainsid'])
+                elif 'domain' in values:
+                    m.ad_id = self.get_adid_by_name(values['domain'])
+
+                if m.ad_id is None:
+                    # TODO...unknown domain??? trusts maybe
+                    return
 
                 m.name = values['name'].split('@', 1)[0]
                 m.sAMAccountName = m.name
                 m.cn = m.name
                 m.objectSid = objectid
-
-                # m.objectSid, _, m.oid, is_domainsid = self.breakup_groupsid(groups['ObjectIdentifier'], m.ad_id)
-                # if is_domainsid is False:
-                #    print('localgroup! %s' % m.oid)
 
                 if 'description' in values and values['description']:
                     m.description = values['description']
@@ -206,9 +211,6 @@ class Importer:
                 if 'whencreated' in values:
                     m.whenCreated = convert_to_dt(values['whencreated'])
             # m.gen_checksum()
-
-            if m.ad_id is None:
-                return
 
             self.db_session.add(m)
             edgeinfo = EdgeLookup(m.ad_id, objectid, 'group')
@@ -222,12 +224,12 @@ class Importer:
                         if bh_version == 4:
                             member_sid = values['ObjectIdentifier']
                             member_type = values['ObjectType']
-                            newmember = Member(m.ad_id, self.graphid, objectid, member_sid, member_type)
+                            newmember = Member(m.ad_id, objectid, member_sid, member_type)
                             self.db_session.add(newmember)
                         elif bh_version == 3:
                             member_sid = values['MemberId']
                             member_type = values['MemberType']
-                            newmember = Member(m.ad_id, self.graphid, objectid, member_sid, member_type)
+                            newmember = Member(m.ad_id, objectid, member_sid, member_type)
                             self.db_session.add(newmember)
 
             # add aces to global Ace table (these will be turned into edges later)
@@ -259,15 +261,14 @@ class Importer:
                 values = objects['Properties']['values']
 
                 if 'domainsid' in values:
-                    m.ad_id = self.ads[values['domainsid']]
-                else:
-                    domain_name = values['domain'].lower()
-                    if domain_name not in self.adn:
-                        # print('TODO', values, objectid)
-                        # input()
-                        # TODO...domain trusts maybe
-                        return
-                    m.ad_id = self.adn[domain_name]
+                    m.ad_id = self.get_adid_by_sid(values['domainsid'])
+                elif 'domain' in values:
+                    m.ad_id = self.get_adid_by_name(values['domain'])
+
+                if m.ad_id is None:
+                    # TODO...unknown domain??? trusts maybe
+                    return
+
                 m.name = values['name'].split('@', 1)[0]
                 m.cn = m.name
                 m.sAMAccountName = m.name
@@ -354,16 +355,14 @@ class Importer:
             values = objects['Properties']['values']
 
             if 'domainsid' in values:
-                m.ad_id = self.ads[values['domainsid']]
-            else:
-                domain_name = values['domain'].lower()
-                if domain_name not in self.adn:
-                    # print('TODO', values, objectid)
-                    # input()
-                    # TODO...domain trusts maybe
-                    return
-                else:
-                    m.ad_id = self.adn[domain_name]
+                m.ad_id = self.get_adid_by_sid(values['domainsid'])
+            elif 'domain' in values:
+                m.ad_id = self.get_adid_by_name(values['domain'])
+
+            if m.ad_id is None:
+                # TODO...unknown domain??? trusts maybe
+                return
+
             m.name = values['name'].split('.', 1)[0]
             m.displayName = m.name
             m.dn = values['distinguishedname']
@@ -408,18 +407,6 @@ class Importer:
             values = objects['Sessions']['values']
             if 'Collected' in values and values['Collected'] is True:
                 print('Session data...not supported yet')
-                # sessions = objects['Sessions']['Results']['objects']
-                # for _, ses in sessions.items():
-                #
-                #   self.add_edge(session['UserId'], 'user', session['ComputerId'], 'machine', 'hasSession', m.ad_id)
-                #   self.add_edge(session['ComputerId'], 'machine', session['UserId'], 'user', 'hasSession', m.ad_id)
-                #   self.db_session.add(s)
-                #   userid = ses['UserId']
-                #   machineid = ses['ComputerId']
-                #   new_session = Session(m.ad_id, self.graphid, userid, machineid, 'hasSession')
-                #   self.db_session.add(new_session)
-                #   new_session = Session(m.ad_id, self.graphid, machineid, userid, 'hasSession')
-                #   self.db_session.add(new_session)
 
         if 'LocalAdmins' in objects.keys():
             values = objects['Sessions']['values']
@@ -476,15 +463,14 @@ class Importer:
                 values = objects['Properties']['values']
 
                 if 'domainsid' in values:
-                    m.ad_id = self.ads[values['domainsid']]
-                else:
-                    domain_name = values['domain'].lower()
-                    if domain_name not in self.adn:
-                        # print('TODO', values, objectid)
-                        # input()
-                        # TODO...domain trusts maybe
-                        return
-                    m.ad_id = self.adn[domain_name]
+                    m.ad_id = self.get_adid_by_sid(values['domainsid'])
+                elif 'domain' in values:
+                    m.ad_id = self.get_adid_by_name(values['domain'])
+
+                if m.ad_id is None:
+                    # TODO...unknown domain??? trusts maybe
+                    return
+
                 m.name = values['name'].split('@', 1)[0]
                 m.objectGUID = objectid
                 if values['description']:
@@ -530,13 +516,15 @@ class Importer:
             if 'Properties' in objects.keys():
                 values = objects['Properties']['values']
 
-                ad_name = values['domain'].lower()
-                if ad_name not in self.adn:
-                    # print('TODO', values, objectid)
-                    # input()
-                    # TODO...domain trusts maybe
+                if 'domainsid' in values:
+                    m.ad_id = self.get_adid_by_sid(values['domainsid'])
+                elif 'domain' in values:
+                    m.ad_id = self.get_adid_by_name(values['domain'])
+
+                if m.ad_id is None:
+                    # TODO...unknown domain??? trusts maybe
                     return
-                m.ad_id = self.adn[ad_name]
+
                 m.name = values['name'].split('@', 1)[0]
                 m.ou = m.name
                 m.objectGUID = objectid
@@ -564,7 +552,11 @@ class Importer:
                         values = link['values']
                         if bh_version == 4:
                             gpo_guid = values['ObjectIdentifier']
-                            newgplink = Gplink(m.ad_id, self.graphid, objectid, gpo_guid)
+                            newgplink = Gplink(m.ad_id, objectid, gpo_guid)
+                            self.db_session.add(newgplink)
+                        elif bh_version == 3:
+                            gpo_guid = values['Guid']
+                            newgplink = Gplink(m.ad_id, objectid, gpo_guid)
                             self.db_session.add(newgplink)
 
             if 'ChildObjects' in arrays.keys():
@@ -575,7 +567,30 @@ class Importer:
                         if bh_version == 4:
                             child_id = values['ObjectIdentifier']
                             child_type = values['ObjectType']
-                            newchild = ChildObject(m.ad_id, self.graphid, objectid, child_id, child_type)
+                            newchild = ChildObject(m.ad_id, objectid, child_id, child_type)
+                            self.db_session.add(newchild)
+
+            if bh_version == 3:
+                # childobjects stored in Users, Computers, childous (just a list of sides)
+                if 'Users' in arrays.keys():
+                    if len(arrays['Users']) > 0:
+                        childobjects = arrays['Users']['values']
+                        for _, child_id in childobjects.items():
+                            newchild = ChildObject(m.ad_id, objectid, child_id, 'User')
+                            self.db_session.add(newchild)
+
+                if 'Computers' in arrays.keys():
+                    if len(arrays['Computers']) > 0:
+                        childobjects = arrays['Computers']['values']
+                        for _, child_id in childobjects.items():
+                            newchild = ChildObject(m.ad_id, objectid, child_id, 'Computer')
+                            self.db_session.add(newchild)
+
+                if 'ChildOus' in arrays.keys():
+                    if len(arrays['ChildOus']) > 0:
+                        childobjects = arrays['ChildOus']['values']
+                        for _, child_id in childobjects.items():
+                            newchild = ChildObject(m.ad_id, objectid, child_id, 'OU')
                             self.db_session.add(newchild)
 
             self.db_session.commit()
@@ -600,12 +615,15 @@ class Importer:
             if 'Properties' in objects.keys():
                 values = objects['Properties']['values']
 
-                ad_name = values['domain'].lower()
-                if ad_name not in self.adn:
-                    # print('TODO', values, objectid)
-                    # input()
+                if 'domainsid' in values:
+                    m.ad_id = self.get_adid_by_sid(values['domainsid'])
+                elif 'domain' in values:
+                    m.ad_id = self.get_adid_by_name(values['domain'])
+
+                if m.ad_id is None:
+                    # TODO...unknown domain??? trusts maybe
                     return
-                m.ad_id = self.adn[ad_name]
+
                 m.name = values['name'].split('@', 1)[0]
                 m.objectGUID = objectid
                 if values['distinguishedname']:
@@ -629,7 +647,7 @@ class Importer:
                         if bh_version == 4:
                             child_id = values['ObjectIdentifier']
                             child_type = values['ObjectType']
-                            newchild = ChildObject(m.ad_id, self.graphid, objectid, child_id, child_type)
+                            newchild = ChildObject(m.ad_id, objectid, child_id, child_type)
                             self.db_session.add(newchild)
 
             self.db_session.commit()
@@ -656,12 +674,13 @@ class Importer:
                 if res is not None:
                     dst = self.sid_to_id(res.objectSid, spn.ad_id)
                     src = self.sid_to_id(spn.owner_sid, spn.ad_id)
-                    edge = Edge(spn.ad_id, self.graphid, src, dst, 'sqladmin')
+                    edge = Edge(spn.ad_id, src, dst, 'sqladmin')
                     self.db_session.add(edge)
                 else:
                     # logger.debug('[BHIMPORT2] sqlaldmin add edge cant find machine %s' % spn.computername)
                     pass
             iterator.update(1)
+        self.db_session.query(UserSPN).delete()
         self.db_session.commit()
 
     def insert_members_edges(self):
@@ -672,9 +691,10 @@ class Importer:
         for member in windowed_query(q, Member.id, 1000):
             dst = self.sid_to_id(member.group_sid, member.ad_id)
             src = self.sid_to_id(member.member_sid, member.ad_id)
-            edge = Edge(member.ad_id, self.graphid, src, dst, 'member')
+            edge = Edge(member.ad_id, src, dst, 'member')
             self.db_session.add(edge)
             iterator.update(1)
+        self.db_session.query(Member).delete()
         self.db_session.commit()
 
     def insert_childobjects_edges(self):
@@ -685,9 +705,10 @@ class Importer:
         for childobject in windowed_query(q, ChildObject.id, 1000):
             dst = self.sid_to_id(childobject.container_id, childobject.ad_id)
             src = self.sid_to_id(childobject.child_id, childobject.ad_id)
-            edge = Edge(childobject.ad_id, self.graphid, src, dst, 'childobject')
+            edge = Edge(childobject.ad_id, src, dst, 'childobject')
             self.db_session.add(edge)
             iterator.update(1)
+        self.db_session.query(ChildObject).delete()
         self.db_session.commit()
 
     def insert_gplink_edges(self):
@@ -698,9 +719,10 @@ class Importer:
         for link in windowed_query(q, Gplink.id, 1000):
             dst = self.sid_to_id(link.ou_guid, link.ad_id)
             src = self.sid_to_id(link.gpo_uid, link.ad_id)
-            edge = Edge(link.ad_id, self.graphid, src, dst, 'gplink')
+            edge = Edge(link.ad_id, src, dst, 'gplink')
             self.db_session.add(edge)
             iterator.update(1)
+        self.db_session.query(Gplink).delete()
         self.db_session.commit()
 
     def insert_ace_edges(self):
@@ -711,13 +733,13 @@ class Importer:
         for ace in windowed_query(q, Ace.id, 1000):
             src = self.sid_to_id(ace.dst_sid, ace.ad_id)
             dst = self.sid_to_id(ace.src_sid, ace.ad_id)
-            edge = Edge(ace.ad_id, self.graphid, src, dst, ace.label)
+            edge = Edge(ace.ad_id, src, dst, ace.label)
             self.db_session.add(edge)
             iterator.update(1)
+        self.db_session.query(Ace).delete()
         self.db_session.commit()
 
-    def from_zipfile(self, filepath, graphid=None):
-        self.graphid = None
+    def from_zipfile(self, filepath):
         with zipfile.ZipFile(filepath, 'r') as myzip:
             for names in myzip.namelist():
                 try:
@@ -730,20 +752,12 @@ class Importer:
 
     def readchunk(self, f):
         try:
-            # return f.read(1024)
             return f.read(65535)
         except Exception as ex:
             return ''
 
     def run(self):
         self.setup_db()
-
-        if self.graphid is None:
-            gi = GraphInfo('bloodhound import')
-            self.db_session.add(gi)
-            self.db_session.commit()
-            self.db_session.refresh(gi)
-            self.graphid = gi.id
 
         # for all files in zip get meta information on them first
         all_json_files = {}
@@ -761,40 +775,40 @@ class Importer:
         with open(all_json_files['domains'][1], 'r') as f:
             self.json_parser.json_parser2(all_json_files['domains'][0], f)
 
-        #print('pause')
-        #input()
+            # print('pause')
+            # input()
 
         if 'groups' in all_json_files:
             print(f'Processing groups json {all_json_files["groups"]}')
             with open(all_json_files['groups'][1], 'r') as f:
                 self.json_parser.json_parser2(all_json_files['groups'][0], f)
 
-        #print('pause')
-        #input()
+        # print('pause')
+        # input()
 
         if 'users' in all_json_files:
             print(f'Processing users json {all_json_files["users"]}')
             with open(all_json_files['users'][1], 'r') as f:
                 self.json_parser.json_parser2(all_json_files['users'][0], f)
 
-        #print('pause')
-        #input()
+        # print('pause')
+        # input()
 
         if 'computers' in all_json_files:
             print(f'Processing computers json {all_json_files["computers"]}')
             with open(all_json_files['computers'][1], 'r') as f:
                 self.json_parser.json_parser2(all_json_files['computers'][0], f)
 
-        #print('pause')
-        #input()
+        # print('pause')
+        # input()
 
         if 'gpos' in all_json_files:
             print(f'Processing gpos json {all_json_files["gpos"]}')
             with open(all_json_files['gpos'][1], 'r') as f:
                 self.json_parser.json_parser2(all_json_files['gpos'][0], f)
 
-        #print('pause')
-        #input()
+        # print('pause')
+        # input()
 
         if 'ous' in all_json_files:
             print(f'Processing ous json {all_json_files["ous"]}')

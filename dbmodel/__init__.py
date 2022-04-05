@@ -5,7 +5,6 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 import enum
 import logging
-import os
 
 Basemodel = declarative_base()
 
@@ -39,9 +38,6 @@ def set_sqlite_pragma(dbapi_connection, connection_record):
 	Sadly I could not find a way to limit the execution to sqlite so other DBs will trow an error :(
 	TODO: fix this
 	"""
-	# is_sqlite = os.getenv('JACKDAW_SQLITE', '0')
-	# if is_sqlite == '0':
-	#	return
 	cursor = dbapi_connection.cursor()
 	cursor.execute("PRAGMA journal_mode = MEMORY")
 	cursor.execute("PRAGMA synchronous = OFF")
@@ -94,7 +90,6 @@ def bc(x):
 	raise Exception('Cant convert this to bool: %s type: %s' % (x, type(x)))
 
 
-from .graphinfo import GraphInfo, GraphInfoAD
 from .domain import *
 from .group import *
 from .computer import *

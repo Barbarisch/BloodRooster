@@ -9,7 +9,6 @@ class Container(Basemodel, Serializer):
 
     id = Column(Integer, primary_key=True)
     ad_id = Column(Integer, ForeignKey('domains.id'))
-    graph_id = Column(Integer, index=True)
     name = Column(String)
     dn = Column(String)
     objectGUID = Column(String, index=True)
