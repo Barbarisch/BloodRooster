@@ -1,5 +1,6 @@
 tqdm
 sqlalchemy
+flask
 flask_socketio
 flask_bootstrap
 flask_session

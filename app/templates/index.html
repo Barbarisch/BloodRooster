@@ -20,7 +20,7 @@
                 background-color: #222222;
             }
 
-            #mynetwork {
+            #network {
                 float: left;
                 min-width: 800px;
                 min-height: 700px;
@@ -197,7 +197,7 @@
 
         <h2>BloodRooster</h2>
         <div style="width: 100%">
-            <div id="mynetwork" style="width: 70%; height: 100px; float: left;"></div>
+            <div id="network" style="width: 70%; height: 100px; float: left;"></div>
             <div style="width: 20%; height: 100px; float: left;"><br>
                 <select id="submit_type" name="submit_type" onchange="draw_inputs()">
                     <option value="shortest_path_src">Shortest Path to source</option>
@@ -205,7 +205,14 @@
                     <option value="shortest_path_src_dst">Shortest Path from source to destination</option>
                     <option value="kerberoastable_users">Get all kerberoastable users</option>
                     <option value="asreproastable_users">Get all AS-REP roastable users</option>
+                    <option value="dcsync_objects">Get all objects that can DCSYNC</option>
                 </select><br><br>
+                <form autocomplete="off" id="domain_form" style="display: none;">
+                    <label for="domain">Domain</label><br>
+                    <div class="autocomplete">
+                        <input type="text" id="domain" name="domain"><br><br>
+                    </div>
+                </form>
                 <form autocomplete="off" id="src_form" style="display: block;">
                     <label for="src">Source</label><br>
                     <div class="autocomplete">
@@ -299,12 +306,12 @@
         <script>
             // capture resize event so extended_info always same size as network
             $(window).resize(function() {
-                setWidth($('#mynetwork'), $('#extended_info'));
+                setWidth($('#network'), $('#extended_info'));
             });
 
             // when loaded extended_info gets resized to same as network
             $(document).ready(function() {
-              setWidth($('#mynetwork'), $('#extended_info'));
+              setWidth($('#network'), $('#extended_info'));
             });
 
             // sets width of element 2 to equal the width of element 1
@@ -313,8 +320,9 @@
               elem2.css('width', width);
             }
 
-            autocomplete(document.getElementById("src"));
-            autocomplete(document.getElementById("dst"));
+            autocomplete(document.getElementById("domain"), "domain");
+            autocomplete(document.getElementById("src"), "all");
+            autocomplete(document.getElementById("dst"), "all");
         </script>
     </body>
 </html>

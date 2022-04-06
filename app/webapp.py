@@ -6,7 +6,7 @@ from .utils import make_node, make_edge, group_display, user_display, computer_d
 from .utils import user_list_display
 
 
-class BloodRoostrWebApp:
+class BloodRoosterWebApp:
     def __init__(self):
         self.nodes = []
         self.edges = []
@@ -31,40 +31,67 @@ class BloodRoostrWebApp:
             return res.objectGUID
         return ''
 
-    def autocomplete(self, text=b'', max_return=15):
-        print('AUTOCOMPLETE called', text)
-        text = text.decode('utf-8')
+    def autocomplete(self, json_data, max_return=15):
+        autocomplete_type = json_data['type']
+        text = json_data['text']
         matches = []
 
-        res = db.session.query(Computer).filter(Computer.name.startswith(text.upper()))
-        if res:
-            for t in res:
-                if len(matches) <= max_return:
-                    matches.append(t.name)
+        limit = max_return
 
-        res = db.session.query(Group).filter(Group.name.startswith(text.upper()))
-        if res:
-            for t in res:
-                if len(matches) <= max_return:
-                    matches.append(t.name)
+        if autocomplete_type == 'all':
+            res = db.session.query(Computer).filter(Computer.name.startswith(text.upper())).limit(limit)
+            if res:
+                for t in res:
+                    if len(matches) <= max_return:
+                        matches.append(t.name)
+                limit = limit - len(matches)
 
-        res = db.session.query(User).filter(User.name.startswith(text.upper()))
-        if res:
-            for t in res:
-                if len(matches) <= max_return:
-                    matches.append(t.name)
+            if limit > 0:
+                res = db.session.query(Group).filter(Group.name.startswith(text.upper())).limit(limit)
+                if res:
+                    for t in res:
+                        if len(matches) <= max_return:
+                            matches.append(t.name)
+                    limit = limit - len(matches)
 
-        res = db.session.query(GPO).filter(GPO.name.startswith(text.upper()))
-        if res:
-            for t in res:
-                if len(matches) <= max_return:
-                    matches.append(t.name)
+            if limit > 0:
+                res = db.session.query(User).filter(User.name.startswith(text.upper())).limit(limit)
+                if res:
+                    for t in res:
+                        if len(matches) <= max_return:
+                            matches.append(t.name)
+                    limit = limit - len(matches)
 
-        res = db.session.query(Ou).filter(Ou.name.startswith(text.upper()))
-        if res:
-            for t in res:
-                if len(matches) <= max_return:
-                    matches.append(t.name)
+            if limit > 0:
+                res = db.session.query(GPO).filter(GPO.name.startswith(text.upper())).limit(limit)
+                if res:
+                    for t in res:
+                        if len(matches) <= max_return:
+                            matches.append(t.name)
+                    limit = limit - len(matches)
+
+            if limit > 0:
+                res = db.session.query(Ou).filter(Ou.name.startswith(text.upper())).limit(limit)
+                if res:
+                    for t in res:
+                        if len(matches) <= max_return:
+                            matches.append(t.name)
+                    limit = limit - len(matches)
+
+            if limit > 0:
+                res = db.session.query(Container).filter(Container.name.startswith(text.upper())).limit(limit)
+                if res:
+                    for t in res:
+                        if len(matches) <= max_return:
+                            matches.append(t.name)
+                    limit = limit - len(matches)
+
+        elif autocomplete_type == 'domain':
+            res = db.session.query(Domain).filter(Domain.name.startswith(text.upper())).limit(limit)
+            if res:
+                for t in res:
+                    if len(matches) <= max_return:
+                        matches.append(t.name)
 
         print('returning matches', matches)
         return json.dumps(matches)
@@ -100,6 +127,8 @@ class BloodRoostrWebApp:
             self.kerberoastable_users()
         elif json_data['submit_type'] == 'asreproastable_users':
             self.asreproastable_users()
+        elif json_data['submit_type'] == 'dcsync_objects':
+            self.dcsync_objects()
         else:
             return final
 
@@ -124,6 +153,23 @@ class BloodRoostrWebApp:
         res = db.session.query(User).filter(User.UAC_DONT_REQUIRE_PREAUTH)
         if res:
             self.nodes.append(make_node('asreproastable', 'AS-REP Roastable', 'user_list', 0))
+
+    def dcsync_objects(self):
+        res = db.session.query(Domain).first()
+        if res:
+            self.nodes.append(make_node(res.objectSid, res.name, 'domain', 0))
+            start = db.session.query(EdgeLookup).filter_by(oid=res.objectSid).first()
+            if start:
+                edges_query = db.session.query(Edge).filter_by(dst=start.id)
+                if edges_query:
+                    idx = 0
+                    for edge in edges_query:
+                        if edge.label == 'GetChanges' or edge.label == 'GetChangesAll':
+                            res2 = db.session.query(EdgeLookup).filter_by(id=edge.src).first()
+                            if res2:
+                                self.edges.append(make_edge(str(idx), res2.oid, res.objectSid, edge.label))
+                                idx = idx + 1
+                                self.add_node(res2.oid, res.objectSid, edge.label, 1, True)
 
     def path_to_dst(self, oid, max_depth=5, edge_list=None):
         self.add_node_recursive([oid], max_depth=max_depth, edge_list=edge_list)
@@ -205,6 +251,48 @@ class BloodRoostrWebApp:
         self.nodes = []
         self.edges = []
         return
+
+    def add_node(self, sid, parent_oid, edge_label, depth=0, expand_group=False):
+        id_sid_map = {}
+
+        start = db.session.query(EdgeLookup).filter_by(oid=sid).first()  # get id and typefrom sid
+        if start:
+            if start.oid not in self.ncache:
+                self.ncache.append(start.oid)
+                if start.otype == 'group':
+                    if expand_group is True:
+                        self.get_group_member_nodes(start, parent_oid, edge_label)
+                    else:
+                        new_node = db.session.query(Group).filter_by(objectSid=start.oid).first()
+                        self.nodes.append(make_node(new_node.objectSid, new_node.name, 'group', depth))
+                elif start.otype == 'user':
+                    new_node = db.session.query(User).filter_by(objectSid=start.oid).first()
+                    self.nodes.append(make_node(new_node.objectSid, new_node.name, 'user', depth))
+                elif start.otype == 'machine':
+                    new_node = db.session.query(Computer).filter_by(objectSid=start.oid).first()
+                    self.nodes.append(make_node(new_node.objectSid, new_node.name, 'computer', depth))
+                elif start.otype == 'gpo':
+                    new_node = db.session.query(GPO).filter_by(objectGUID=start.oid).first()
+                    self.nodes.append(make_node(new_node.objectGUID, new_node.name, 'gpo', depth))
+                elif start.otype == 'ou':
+                    new_node = db.session.query(Ou).filter_by(objectGUID=start.oid).first()
+                    self.nodes.append(make_node(new_node.objectGUID, new_node.name, 'ou', depth))
+                elif start.otype == 'container':
+                    new_node = db.session.query(Container).filter_by(objectGUID=start.oid).first()
+                    self.nodes.append(make_node(new_node.objectGUID, new_node.name, 'container', depth))
+                else:
+                    print('UNKNOWN!@!!!!!!!', start.otype)
+                id_sid_map[start.id] = start.oid
+
+    def get_group_member_nodes(self, group_obj, parent_oid, edge_label):
+        edges_query = db.session.query(Edge).filter_by(dst=group_obj.id)
+        if edges_query:
+            for edge in edges_query:
+                if edge.label == 'member':
+                    res2 = db.session.query(EdgeLookup).filter_by(id=edge.src).first()
+                    if res2:
+                        self.add_node(res2.oid, parent_oid, edge_label, 1, True)
+                        self.edges.append(make_edge(res2.oid, res2.oid, parent_oid, edge_label))
 
     def add_node_recursive(self, sids, depth=0, max_depth=5, edge_list=None):
         id_sid_map = {}

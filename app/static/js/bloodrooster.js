@@ -63,7 +63,7 @@ function draw(jsonstr='') {
     // create a network
     ////////////////////
 
-    var container = document.getElementById("mynetwork");
+    var container = document.getElementById("network");
 
     var options = {
       physics: {
@@ -171,6 +171,7 @@ function draw_inputs() {
     var submit_type = $('#submit_type').val()
 
     // hide all input divs
+    document.getElementById("domain_form").style.display = "none";
     document.getElementById("src_form").style.display = "none";
     document.getElementById("dst_form").style.display = "none";
 
@@ -184,6 +185,9 @@ function draw_inputs() {
         case "shortest_path_src_dst":
             document.getElementById("src_form").style.display = "block";
             document.getElementById("dst_form").style.display = "block";
+            break;
+        case "dcsync_objects":
+            document.getElementById("domain_form").style.display = "block";
             break;
         default:
             break;
@@ -218,7 +222,7 @@ function showEdgeToggle() {
 
 // draw the spinning loading icon
 function showLoading() {
-    var y = document.getElementById("mynetwork");
+    var y = document.getElementById("network");
     y.innerHTML = '<div id="loader"></div>';
 }
 
@@ -229,6 +233,7 @@ function submit_clicked() {
 
     // package all fields into json object
     var data = {
+        'domain': $('#domain').val(),  // domain name
         'src': $('#src').val(),  // source name
         'dst': $('#dst').val(),  // destination name
         'edges': create_edge_list(),  // list of enabled edges
@@ -345,7 +350,7 @@ function create_edge_list() {
     return edge_list
 }
 
-function autocomplete(inp) {
+function autocomplete(inp, type='all') {
     var currentFocus;
 
     /* create input event list */
@@ -368,10 +373,12 @@ function autocomplete(inp) {
 
         // get autocomplete list using ajax POST
         $.ajax({
-            type:'POST',
-            url:'/autocomplete',
-            data: val,
-            success:function(ret) {
+            type: 'POST',
+            url: '/autocomplete',
+            data: JSON.stringify({ "type": type, "text": val }),
+            processData: false,
+            contentType: "application/json; charset=UTF-8",
+            success: function(ret) {
                 var arr = JSON.parse(ret);
 
                 /* for each item in the array... */

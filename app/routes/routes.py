@@ -1,6 +1,6 @@
 from app import bloodrooster_app
-from flask import render_template, request, redirect, session
-from app.webapp import BloodRoostrWebApp
+from flask import render_template, request, redirect
+from app.webapp import BloodRoosterWebApp
 
 
 @bloodrooster_app.route("/")
@@ -17,7 +17,7 @@ def graph():
 def graph_update():
     """ Graph updating request handler """
     graph_data = ''
-    webapp = BloodRoostrWebApp()
+    webapp = BloodRoosterWebApp()
     if request.method == 'POST':
         graph_data = webapp.graph_update(request.get_json())
     return graph_data
@@ -26,7 +26,7 @@ def graph_update():
 @bloodrooster_app.route("/extended_info", methods=['POST'])
 def extended_info():
     """ Node information request handler """
-    webapp = BloodRoostrWebApp()
+    webapp = BloodRoosterWebApp()
     object_data = webapp.get_extended_info(request.get_data())
     return object_data
 
@@ -34,7 +34,6 @@ def extended_info():
 @bloodrooster_app.route("/autocomplete", methods=['POST'])
 def autocomplete():
     """ Node information request handler """
-    webapp = BloodRoostrWebApp()
-    # object_data = webapp.autocomplete()
-    object_data = webapp.autocomplete(request.get_data())
+    webapp = BloodRoosterWebApp()
+    object_data = webapp.autocomplete(request.get_json())
     return object_data
