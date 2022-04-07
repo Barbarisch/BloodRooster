@@ -3,7 +3,7 @@ from sqlalchemy.sql.expression import func
 from app import db
 from dbmodel import *
 from .utils import make_node, make_edge, group_display, user_display, computer_display, ou_display, gpo_display
-from .utils import user_list_display
+from .utils import user_list_display, domain_display, computer_list_display
 
 
 class BloodRoosterWebApp:
@@ -129,6 +129,10 @@ class BloodRoosterWebApp:
             self.asreproastable_users()
         elif json_data['submit_type'] == 'dcsync_objects':
             self.dcsync_objects()
+        elif json_data['submit_type'] == 'lapsusers':
+            self.laps_users()
+        elif json_data['submit_type'] == 'unconstrained_delegation':
+            self.unconstrained_delegation()
         else:
             return final
 
@@ -170,6 +174,26 @@ class BloodRoosterWebApp:
                                 self.edges.append(make_edge(str(idx), res2.oid, res.objectSid, edge.label))
                                 idx = idx + 1
                                 self.add_node(res2.oid, res.objectSid, edge.label, 1, True)
+
+    def laps_users(self):
+        edges = db.session.query(Edge).filter_by(label='ReadLAPSPassword')
+        if edges:
+            idx = 0
+            for edge in edges:
+                src = db.session.query(EdgeLookup).filter_by(id=edge.src)
+                if src:
+                    self.add_node2(src.oid, src.otype)
+
+                dst = db.session.query(EdgeLookup).filter_by(id=edge.dst)
+                if dst:
+                    self.add_node2(dst.oid, dst.otype)
+                self.edges.append(make_edge(idx, src, dst, 'ReadLAPSPassword'))
+                idx = idx + 1
+
+    def unconstrained_delegation(self):
+        res = db.session.query(Computer).filter(Computer.UAC_TRUSTED_FOR_DELEGATION)
+        if res:
+            self.nodes.append(make_node('unconstrained_delegation', 'Unconstrained Delegation', 'computer_list', 0))
 
     def path_to_dst(self, oid, max_depth=5, edge_list=None):
         self.add_node_recursive([oid], max_depth=max_depth, edge_list=edge_list)
@@ -251,6 +275,28 @@ class BloodRoosterWebApp:
         self.nodes = []
         self.edges = []
         return
+
+    def add_node2(self, oid, otype):
+        if otype == 'group':
+            new_node = db.session.query(Group).filter_by(objectSid=oid).first()
+            self.nodes.append(make_node(new_node.objectSid, new_node.name, 'group', 0))
+        elif otype == 'user':
+            new_node = db.session.query(User).filter_by(objectSid=oid).first()
+            self.nodes.append(make_node(new_node.objectSid, new_node.name, 'user', 0))
+        elif otype == 'machine':
+            new_node = db.session.query(Computer).filter_by(objectSid=oid).first()
+            self.nodes.append(make_node(new_node.objectSid, new_node.name, 'computer', 0))
+        elif otype == 'gpo':
+            new_node = db.session.query(GPO).filter_by(objectGUID=oid).first()
+            self.nodes.append(make_node(new_node.objectGUID, new_node.name, 'gpo', 0))
+        elif otype == 'ou':
+            new_node = db.session.query(Ou).filter_by(objectGUID=oid).first()
+            self.nodes.append(make_node(new_node.objectGUID, new_node.name, 'ou', 0))
+        elif otype == 'container':
+            new_node = db.session.query(Container).filter_by(objectGUID=oid).first()
+            self.nodes.append(make_node(new_node.objectGUID, new_node.name, 'container', 0))
+        else:
+            print('UNKNOWN!@!!!!!!!', otype)
 
     def add_node(self, sid, parent_oid, edge_label, depth=0, expand_group=False):
         id_sid_map = {}
@@ -363,6 +409,10 @@ class BloodRoosterWebApp:
             res = db.session.query(User).filter(User.UAC_DONT_REQUIRE_PREAUTH)
             if res:
                 ret = user_list_display(res)
+        elif nodeid == 'unconstrained_delegation':
+            res = db.session.query(Computer).filter(Computer.UAC_TRUSTED_FOR_DELEGATION)
+            if res:
+                ret = computer_list_display(res)
         else:
             res = db.session.query(EdgeLookup).filter_by(oid=nodeid).first()  # get id and typefrom sid
             if res:
@@ -381,6 +431,9 @@ class BloodRoosterWebApp:
                 elif res.otype == 'ou':
                     obj = db.session.query(Ou).filter_by(objectGUID=res.oid).first()
                     ret = ou_display(obj)
+                elif res.otype == 'domain':
+                    obj = db.session.query(Domain).filter_by(objectSid=res.oid).first()
+                    ret = domain_display(obj)
                 else:
                     print('UNKNOWN!@!!!!!!!')
         return ret

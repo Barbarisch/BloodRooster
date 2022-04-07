@@ -441,6 +441,19 @@ class Importer:
             if len(arrays['Aces']) > 0:
                 self.add_aces(bh_version, m.ad_id, objectid, arrays['Aces']['objects'])
 
+        if bh_version == 3:
+            if 'LocalAdmins' in arrays.keys():
+                if len(arrays['LocalAdmins']) > 0:
+                    print('Not supported yet', arrays['LocalAdmins']['values'])
+
+            if 'RemoteDesktopUsers' in arrays.keys():
+                if len(arrays['RemoteDesktopUsers']) > 0:
+                    print('Not supported yet', arrays['RemoteDesktopUsers']['values'])
+
+            if 'Sessions' in arrays.keys():
+                if len(arrays['Sessions']) > 0:
+                    print('Not supported yet', arrays['Sessions']['values'])
+
         self.db_session.commit()
         # except Exception as ex:
         #    print('import_machine_v4', ex)
@@ -778,18 +791,18 @@ class Importer:
             # print('pause')
             # input()
 
-        if 'groups' in all_json_files:
-            print(f'Processing groups json {all_json_files["groups"]}')
-            with open(all_json_files['groups'][1], 'r') as f:
-                self.json_parser.json_parser2(all_json_files['groups'][0], f)
+        #if 'groups' in all_json_files:
+        #    print(f'Processing groups json {all_json_files["groups"]}')
+        #    with open(all_json_files['groups'][1], 'r') as f:
+        #        self.json_parser.json_parser2(all_json_files['groups'][0], f)
 
         # print('pause')
         # input()
 
-        if 'users' in all_json_files:
-            print(f'Processing users json {all_json_files["users"]}')
-            with open(all_json_files['users'][1], 'r') as f:
-                self.json_parser.json_parser2(all_json_files['users'][0], f)
+        #if 'users' in all_json_files:
+        #    print(f'Processing users json {all_json_files["users"]}')
+        #    with open(all_json_files['users'][1], 'r') as f:
+        #        self.json_parser.json_parser2(all_json_files['users'][0], f)
 
         # print('pause')
         # input()

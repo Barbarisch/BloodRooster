@@ -135,6 +135,8 @@ function getImagePathForNode(nodetype='') {
     var container_path = 'static/images/container.png';
     var user_list_path = 'static/images/user_list.png';
     var unknown_path = "static/images/unknown.png";
+    var domain_path = "static/images/domain.png";
+    var computer_list_path = "static/images/computer_list.png"
 
     image = unknown_path;
 
@@ -159,6 +161,12 @@ function getImagePathForNode(nodetype='') {
             break;
         case "user_list":
             image = user_list_path;
+            break;
+        case "domain":
+            image = domain_path;
+            break;
+        case "computer_list":
+            image = computer_list_path;
             break;
         default:
             image = unknown_path;

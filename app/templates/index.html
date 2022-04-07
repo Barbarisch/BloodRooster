@@ -206,6 +206,8 @@
                     <option value="kerberoastable_users">Get all kerberoastable users</option>
                     <option value="asreproastable_users">Get all AS-REP roastable users</option>
                     <option value="dcsync_objects">Get all objects that can DCSYNC</option>
+                    <option value="lapsusers">Get all users that can read LAPS passwords</option>
+                    <option value="unconstrained_delegation">Get all computers with unconstrained delegation</option>
                 </select><br><br>
                 <form autocomplete="off" id="domain_form" style="display: none;">
                     <label for="domain">Domain</label><br>
@@ -226,7 +228,6 @@
                     </div>
                 </form>
                 <input id="submit_button" type="submit" value="Submit" onclick="submit_clicked()"><br><br>
-                <input id="submit_button2" type="submit" value="TEST" onclick="test_clicked()"><br><br>
                 <button id="edgetogglebutton" onclick="showEdgeToggle()">Edge toggle →</button><br><br>
                 <div id="edgetoggle" style="display: none;">
                     <label class="switch">
@@ -309,9 +310,13 @@
                 setWidth($('#network'), $('#extended_info'));
             });
 
-            // when loaded extended_info gets resized to same as network
             $(document).ready(function() {
-              setWidth($('#network'), $('#extended_info'));
+                // when loaded extended_info gets resized to same as network
+                setWidth($('#network'), $('#extended_info'));
+
+                // reset submit_type to first option
+                var element = document.getElementById("submit_type");
+                element.value = "shortest_path_src";
             });
 
             // sets width of element 2 to equal the width of element 1

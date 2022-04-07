@@ -1,4 +1,4 @@
-from dbmodel import Group, User, Computer, Ou, GPO
+from dbmodel import Group, User, Computer, Ou, GPO, Domain
 
 
 extended_info_template_start = '''
@@ -143,4 +143,26 @@ def user_list_display(objs):
     for obj in objs:
         if isinstance(obj, User):
             ret = ret + create_extended_info_item(obj.name, obj.objectSid)
+    return ret + extended_info_template_end
+
+
+def computer_list_display(objs):
+    ret = extended_info_template_start
+    for obj in objs:
+        if isinstance(obj, Computer):
+            ret = ret + create_extended_info_item(obj.name, obj.objectSid)
+    return ret + extended_info_template_end
+
+
+def domain_display(obj):
+    if not isinstance(obj, Domain):
+        return ''
+
+    ret = extended_info_template_start
+    if obj.name and len(obj.name) > 0:
+        ret = ret + create_extended_info_item('Name', obj.name)
+    if obj.objectSid and len(obj.objectSid) > 0:
+        ret = ret + create_extended_info_item('SID', obj.objectSid)
+    if obj.distinguishedName and len(obj.distinguishedName) > 0:
+        ret = ret + create_extended_info_item('Distinguished Name', obj.distinguishedName)
     return ret + extended_info_template_end
