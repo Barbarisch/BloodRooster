@@ -417,6 +417,7 @@ class BloodRoosterWebApp:
             res = db.session.query(EdgeLookup).filter_by(oid=nodeid).first()  # get id and typefrom sid
             if res:
                 if res.otype == 'group':
+
                     obj = db.session.query(Group).filter_by(objectSid=res.oid).first()
                     ret = group_display(obj)
                 elif res.otype == 'user':

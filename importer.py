@@ -3,6 +3,7 @@ import zipfile
 import sys
 import random
 import time
+import traceback
 
 from dbmodel import *
 
@@ -527,26 +528,26 @@ class Importer:
             m = Ou()
 
             if 'Properties' in objects.keys():
-                values = objects['Properties']['values']
+                prop_values = objects['Properties']['values']
 
-                if 'domainsid' in values:
-                    m.ad_id = self.get_adid_by_sid(values['domainsid'])
-                elif 'domain' in values:
-                    m.ad_id = self.get_adid_by_name(values['domain'])
+                if 'domainsid' in prop_values:
+                    m.ad_id = self.get_adid_by_sid(prop_values['domainsid'])
+                elif 'domain' in prop_values:
+                    m.ad_id = self.get_adid_by_name(prop_values['domain'])
 
                 if m.ad_id is None:
                     # TODO...unknown domain??? trusts maybe
                     return
 
-                m.name = values['name'].split('@', 1)[0]
+                m.name = prop_values['name'].split('@', 1)[0]
                 m.ou = m.name
                 m.objectGUID = objectid
-                if values['description']:
-                    m.description = values['description']
-                if values['distinguishedname']:
-                    m.dn = values['distinguishedname']
-                if 'whencreated' in values:
-                    m.whenCreated = convert_to_dt(values['whencreated'])
+                if prop_values['description']:
+                    m.description = prop_values['description']
+                if prop_values['distinguishedname']:
+                    m.dn = prop_values['distinguishedname']
+                if 'whencreated' in prop_values:
+                    m.whenCreated = convert_to_dt(prop_values['whencreated'])
 
             self.db_session.add(m)
             edgeinfo = EdgeLookup(m.ad_id, objectid, 'ou')
@@ -562,13 +563,18 @@ class Importer:
                 if len(arrays['Links']) > 0:
                     links = arrays['Links']['objects']
                     for _, link in links.items():
-                        values = link['values']
+                        link_values = link['values']
                         if bh_version == 4:
-                            gpo_guid = values['ObjectIdentifier']
+                            if 'ObjectIdentifier' in link_values:  # TODO check to see if ObjectIdentifier is ever needed
+                                gpo_guid = link_values['ObjectIdentifier']
+                            elif 'GUID' in link_values:
+                                gpo_guid = link_values['GUID']
+                            else:
+                                continue
                             newgplink = Gplink(m.ad_id, objectid, gpo_guid)
                             self.db_session.add(newgplink)
                         elif bh_version == 3:
-                            gpo_guid = values['Guid']
+                            gpo_guid = link_values['Guid']
                             newgplink = Gplink(m.ad_id, objectid, gpo_guid)
                             self.db_session.add(newgplink)
 
@@ -576,10 +582,10 @@ class Importer:
                 if len(arrays['ChildObjects']) > 0:
                     childobjects = arrays['ChildObjects']['objects']
                     for _, child in childobjects.items():
-                        values = child['values']
+                        child_values = child['values']
                         if bh_version == 4:
-                            child_id = values['ObjectIdentifier']
-                            child_type = values['ObjectType']
+                            child_id = child_values['ObjectIdentifier']
+                            child_type = child_values['ObjectType']
                             newchild = ChildObject(m.ad_id, objectid, child_id, child_type)
                             self.db_session.add(newchild)
 
@@ -607,6 +613,7 @@ class Importer:
                             self.db_session.add(newchild)
 
             self.db_session.commit()
+
         except Exception as ex:
             print('import_ou_v4', ex)
 
@@ -784,70 +791,70 @@ class Importer:
                 all_json_files[meta['type']] = (meta, json_file)
                 del data
 
-        print(f'Processing domains json {all_json_files["domains"]}')
+        print(f'\nImporting Domains')  # {all_json_files["domains"]}')
         with open(all_json_files['domains'][1], 'r') as f:
-            self.json_parser.json_parser2(all_json_files['domains'][0], f)
+            self.json_parser.json_parser(all_json_files['domains'][0], f)
 
             # print('pause')
             # input()
 
-        #if 'groups' in all_json_files:
-        #    print(f'Processing groups json {all_json_files["groups"]}')
-        #    with open(all_json_files['groups'][1], 'r') as f:
-        #        self.json_parser.json_parser2(all_json_files['groups'][0], f)
+        if 'groups' in all_json_files:
+            print(f'\nImporting Groups')  # {all_json_files["groups"]}')
+            with open(all_json_files['groups'][1], 'r') as f:
+                self.json_parser.json_parser(all_json_files['groups'][0], f)
 
         # print('pause')
         # input()
 
-        #if 'users' in all_json_files:
-        #    print(f'Processing users json {all_json_files["users"]}')
-        #    with open(all_json_files['users'][1], 'r') as f:
-        #        self.json_parser.json_parser2(all_json_files['users'][0], f)
+        if 'users' in all_json_files:
+            print(f'\nImporting Users')  # {all_json_files["users"]}')
+            with open(all_json_files['users'][1], 'r') as f:
+                self.json_parser.json_parser(all_json_files['users'][0], f)
 
         # print('pause')
         # input()
 
         if 'computers' in all_json_files:
-            print(f'Processing computers json {all_json_files["computers"]}')
+            print(f'\nImporting Computers')  # {all_json_files["computers"]}')
             with open(all_json_files['computers'][1], 'r') as f:
-                self.json_parser.json_parser2(all_json_files['computers'][0], f)
+                self.json_parser.json_parser(all_json_files['computers'][0], f)
 
         # print('pause')
         # input()
 
         if 'gpos' in all_json_files:
-            print(f'Processing gpos json {all_json_files["gpos"]}')
+            print(f'\nImporting GPOs')  # {all_json_files["gpos"]}')
             with open(all_json_files['gpos'][1], 'r') as f:
-                self.json_parser.json_parser2(all_json_files['gpos'][0], f)
+                self.json_parser.json_parser(all_json_files['gpos'][0], f)
 
         # print('pause')
         # input()
 
         if 'ous' in all_json_files:
-            print(f'Processing ous json {all_json_files["ous"]}')
+            print(f'\nImporting OUs')  # {all_json_files["ous"]}')
             with open(all_json_files['ous'][1], 'r') as f:
-                self.json_parser.json_parser2(all_json_files['ous'][0], f)
+                self.json_parser.json_parser(all_json_files['ous'][0], f)
 
         #print('pause')
         #input()
 
         if 'containers' in all_json_files:
-            print(f'Processing containers json {all_json_files["containers"]}')
+            print(f'\nImporting Containers')  # {all_json_files["containers"]}')
             with open(all_json_files['containers'][1], 'r') as f:
-                self.json_parser.json_parser2(all_json_files['containers'][0], f)
+                self.json_parser.json_parser(all_json_files['containers'][0], f)
 
         # create edges
-        # print('Creating edges from Sessions')
+        # print('\nCreating edges from Sessions')
         # self.insert_session_edges()
-        print('Creating edges from SPNs')
+        print('\nCreating edges from SPNs')
         self.insert_spn_edges()
-        print('Creating edges from group memberships')
+        print('\nCreating edges from group memberships')
         self.insert_members_edges()
-        print('Creating edges from childobjects')
+        print('\nCreating edges from childobjects')
         self.insert_childobjects_edges()
-        print('Creating edges from gplinks')
+        print('\nCreating edges from gplinks')
         self.insert_gplink_edges()
-        print('Creating edges from aces')
+        print('\nCreating edges from aces')
         self.insert_ace_edges()
 
 
@@ -855,7 +862,7 @@ class JsonParser:
     def __init__(self, bhimporter):
         self.bhimporter = bhimporter
         self.iterator = None  # holds tqdm progress tracker
-        self.offset = 0  # data offset
+        self.offset = 0  # data buffer offset
         self.data = ''  # raw json data
         self.datalen = 0
         self.bh_version = 0
@@ -863,9 +870,11 @@ class JsonParser:
         self.f = None
 
     def next_chunk(self):
+        """ Get next chunk of file data """
         return self.bhimporter.readchunk(self.f)
 
     def get_next_char(self):
+        """ Get next character in data buffer (increments current offset) """
         self.offset = self.offset + 1
         if self.offset < self.datalen:
             return self.data[self.offset]
@@ -875,12 +884,12 @@ class JsonParser:
             self.offset = 0
             if self.offset < self.datalen:
                 char = self.data[self.offset]
-                # self.offset = self.offset + 1
                 return char
             else:
                 return None
 
     def get_current_char(self):
+        """ Get current character in data buffer (does not increment offset) """
         if self.offset < self.datalen:
             return self.data[self.offset]
         else:
@@ -892,40 +901,15 @@ class JsonParser:
             else:
                 return None
 
-    def json_parser(self, meta, data):
-        """ Given raw json bytes start reading from end """
-        self.bh_version = meta['version']
-        self.bh_type = meta['type']
-        self.data = data
-        self.datalen = len(data)
-        self.offset = 0
-        self.iterator = tqdm(range(0, meta['count']))
-
-        # check for byte order mark (BOM)
-        if self.data[0] != '{':
-            bom = bytes(self.data[0], 'utf-8')
-            if bom != b'\xef\xbb\xbf':
-                print('FATAL! - not utf-8 encoding. Try another file')
-                return
-            self.offset = self.offset + 1
-
-        while self.offset < self.datalen:
-            char = self.data[self.offset]
-
-            if char == '{':
-                _ = self.json_object_parser(json_type=JSON_TYPE_TOP_OBJECT)
-
-            self.offset = self.offset + 1
-
-    def json_parser2(self, meta, f):
-        """ Given raw json bytes start reading from end """
+    def json_parser(self, meta, f):
+        """ Parse JSON file containing BloodHound data """
         self.bh_version = meta['version']
         self.bh_type = meta['type']
         self.f = f
-        self.data = self.next_chunk()
+        self.data = self.next_chunk()  # get first chunk of JSON data
         self.datalen = len(self.data)
         self.offset = 0
-        self.iterator = tqdm(range(0, meta['count']))
+        self.iterator = tqdm(total=meta['count'])
 
         # check for byte order mark (BOM)
         if self.data[0] != '{':
@@ -936,15 +920,16 @@ class JsonParser:
             self.offset = self.offset + 1
 
         char = self.get_current_char()
-        # while self.offset < self.datalen:
         while char is not None:
-            # char = self.data[self.offset]
-
+            #
             if char and char == '{':
                 _ = self.json_object_parser(json_type=JSON_TYPE_TOP_OBJECT)
 
             # self.offset = self.offset + 1
             char = self.get_next_char()
+
+        self.iterator.refresh()
+        self.iterator.close()
 
     def json_object_parser(self, name='', json_type=JSON_TYPE_ENTRY_VALUE):
         """ Handles the data between '{' and '}' during processing """
