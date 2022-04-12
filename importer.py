@@ -3,7 +3,6 @@ import zipfile
 import sys
 import random
 import time
-import traceback
 
 from dbmodel import *
 
@@ -32,6 +31,20 @@ def convert_to_dt(s):
     return datetime.datetime.utcfromtimestamp(s)
 
 
+def rando():
+    min_ = 2147483647
+    max_ = 4294967295
+    rand = random.randint(min_, max_)
+    return rand
+
+
+def read_file_chunk(f, block_size=65535):
+    try:
+        return f.read(block_size)
+    except Exception as ex:
+        return ''
+
+
 class Importer:
     def __init__(self, db_conn=None, db_session=None):
         self.debug = False
@@ -49,12 +62,6 @@ class Importer:
     def setup_db(self):
         if self.db_session is None:
             self.db_session = get_session(self.db_conn)
-
-    def rando(self):
-        min_ = 2147483647
-        max_ = 4294967295
-        rand = random.randint(min_, max_)
-        return rand
 
     def get_adid_by_name(self, name):
         if name in self.adn:
@@ -75,6 +82,7 @@ class Importer:
         return None
 
     def sid_to_id(self, sid, adid, objtype='unknown'):
+        """ Retreive database for object base on object id """
         res = self.db_session.query(EdgeLookup).filter_by(oid=sid).filter(EdgeLookup.ad_id == adid).first()
         if res:
             return res.id
@@ -109,6 +117,7 @@ class Importer:
             # print(f'Unsupported bloodhound version {bh_version}')
 
     def add_aces(self, bh_version, ad_id, objectid, aces):
+        """ Import ACEs dict (from json parsing) to database """
         for _, ace in aces.items():
             values = ace['values']
             dst = values['PrincipalSID']
@@ -124,6 +133,7 @@ class Importer:
             self.db_session.add(newace)
 
     def import_domain_v4(self, bh_version, entries):
+        """ Import BloodHound Domain JSON data to database """
         objects = entries['objects']
         arrays = entries['arrays']
         values = entries['values']
@@ -167,6 +177,7 @@ class Importer:
         self.db_session.commit()
 
     def import_group_v4(self, bh_version, entries):
+        """ Import BloodHound Group JSON data to database """
         try:
             objects = entries['objects']
             arrays = entries['arrays']
@@ -243,6 +254,7 @@ class Importer:
             print('import_group_v4', ex)
 
     def import_user_v4(self, bh_version, entries):
+        """ Import BloodHound User JSON data to database """
         try:
             objects = entries['objects']
             arrays = entries['arrays']
@@ -334,132 +346,134 @@ class Importer:
             print('import_user_v4', ex)
 
     def import_machine_v4(self, bh_version, entries):
-        # try:
-        objects = entries['objects']
-        arrays = entries['arrays']
-        values = entries['values']
+        """ Import BloodHound Computer JSON data to database """
+        try:
+            objects = entries['objects']
+            arrays = entries['arrays']
+            values = entries['values']
 
-        # isaclprotected = values['IsACLProtected']
-        # isdeleted = values['IsDeleted']
-        if 'ObjectIdentifier' in values:
-            objectid = values['ObjectIdentifier']
-        else:
-            objectid = ''
-        # status = values['Status']
-        if 'PrimaryGroupSID' in values:
-            primarygroupsid = values['PrimaryGroupSID']
-        else:
-            primarygroupsid = None
+            # isaclprotected = values['IsACLProtected']
+            # isdeleted = values['IsDeleted']
+            if 'ObjectIdentifier' in values:
+                objectid = values['ObjectIdentifier']
+            else:
+                objectid = ''
+            # status = values['Status']
+            if 'PrimaryGroupSID' in values:
+                primarygroupsid = values['PrimaryGroupSID']
+            else:
+                primarygroupsid = None
 
-        m = Computer()
-        if 'Properties' in objects.keys():
-            values = objects['Properties']['values']
+            m = Computer()
+            if 'Properties' in objects.keys():
+                values = objects['Properties']['values']
 
-            if 'domainsid' in values:
-                m.ad_id = self.get_adid_by_sid(values['domainsid'])
-            elif 'domain' in values:
-                m.ad_id = self.get_adid_by_name(values['domain'])
+                if 'domainsid' in values:
+                    m.ad_id = self.get_adid_by_sid(values['domainsid'])
+                elif 'domain' in values:
+                    m.ad_id = self.get_adid_by_name(values['domain'])
 
-            if m.ad_id is None:
-                # TODO...unknown domain??? trusts maybe
+                if m.ad_id is None:
+                    # TODO...unknown domain??? trusts maybe
+                    return
+
+                m.name = values['name'].split('.', 1)[0]
+                m.displayName = m.name
+                m.dn = values['distinguishedname']
+                m.canLogon = values['enabled']
+                m.lastLogonTimestamp = convert_to_dt(values['lastlogontimestamp'])
+                m.pwdLastSet = convert_to_dt(values['pwdlastset'])
+                m.dNSHostName = values['name']
+                m.cn = values['name'].split('.', 1)[0]
+                m.sAMAccountName = m.name + '$'
+                if len(objectid) == 0:
+                    objectid = values['objectid']
+                m.objectSid = objectid
+                m.UAC_TRUSTED_FOR_DELEGATION = values['unconstraineddelegation']
+                if primarygroupsid:
+                    m.primaryGroupID = primarygroupsid.split('-')[-1]
+                if 'description' in values and values['description']:
+                    m.description = values['description']
+                if 'operatingsystem' in values and values['operatingsystem']:
+                    m.operatingSystem = values['operatingsystem']
+                if 'whencreated' in values:
+                    m.whenCreated = convert_to_dt(values['whencreated'])
+
+                prop_arrays = objects['Properties']['arrays']
+                if 'serviceprincipalnames' in prop_arrays and 'values' in prop_arrays['serviceprincipalnames']:
+                    values = prop_arrays['serviceprincipalnames']['values']
+                    for _, spn_str in values.items():
+                        if len(spn_str) > 0:
+                            if m.servicePrincipalName is None or len(m.servicePrincipalName) == 0:
+                                m.servicePrincipalName = spn_str
+                            else:
+                                m.servicePrincipalName = m.servicePrincipalName + '|' + spn_str
+                            new_spn = ServiceSPN.from_spn_str(spn_str, m.objectSid)
+                            new_spn.ad_id = m.ad_id
+                            self.db_session.add(new_spn)
+
+                # Skipping properties: haslaps, trustedtoauth, lastlogon, sidhistory
+            else:
+                # in some cases there is no property block...guess pass on those
                 return
 
-            m.name = values['name'].split('.', 1)[0]
-            m.displayName = m.name
-            m.dn = values['distinguishedname']
-            m.canLogon = values['enabled']
-            m.lastLogonTimestamp = convert_to_dt(values['lastlogontimestamp'])
-            m.pwdLastSet = convert_to_dt(values['pwdlastset'])
-            m.dNSHostName = values['name']
-            m.cn = values['name'].split('.', 1)[0]
-            m.sAMAccountName = m.name + '$'
-            if len(objectid) == 0:
-                objectid = values['objectid']
-            m.objectSid = objectid
-            m.UAC_TRUSTED_FOR_DELEGATION = values['unconstraineddelegation']
-            if primarygroupsid:
-                m.primaryGroupID = primarygroupsid.split('-')[-1]
-            if 'description' in values and values['description']:
-                m.description = values['description']
-            if 'operatingsystem' in values and values['operatingsystem']:
-                m.operatingSystem = values['operatingsystem']
-            if 'whencreated' in values:
-                m.whenCreated = convert_to_dt(values['whencreated'])
+            if 'Sessions' in objects.keys():
+                values = objects['Sessions']['values']
+                if 'Collected' in values and values['Collected'] is True:
+                    print('Session data...not supported yet')
 
-            prop_arrays = objects['Properties']['arrays']
-            if 'serviceprincipalnames' in prop_arrays and 'values' in prop_arrays['serviceprincipalnames']:
-                values = prop_arrays['serviceprincipalnames']['values']
-                for _, spn_str in values.items():
-                    if len(spn_str) > 0:
-                        if m.servicePrincipalName is None or len(m.servicePrincipalName) == 0:
-                            m.servicePrincipalName = spn_str
-                        else:
-                            m.servicePrincipalName = m.servicePrincipalName + '|' + spn_str
-                        new_spn = ServiceSPN.from_spn_str(spn_str, m.objectSid)
-                        new_spn.ad_id = m.ad_id
-                        self.db_session.add(new_spn)
+            if 'LocalAdmins' in objects.keys():
+                values = objects['Sessions']['values']
+                if 'Collected' in values and values['Collected'] is True:
+                    print('LocalAdmins data...not supported yet')
 
-            # Skipping properties: haslaps, trustedtoauth, lastlogon, sidhistory
-        else:
-            # in some cases there isnt a property block...guess pass on those
-            return
+            if 'RemoteDesktopUsers' in objects.keys():
+                values = objects['RemoteDesktopUsers']['values']
+                if 'Collected' in values and values['Collected'] is True:
+                    print('RemoteDesktopUsers data...not supported yet')
 
-        if 'Sessions' in objects.keys():
-            values = objects['Sessions']['values']
-            if 'Collected' in values and values['Collected'] is True:
-                print('Session data...not supported yet')
+            if 'DcomUsers' in objects.keys():
+                values = objects['DcomUsers']['values']
+                if 'Collected' in values and values['Collected'] is True:
+                    print('DcomUsers data...not supported yet')
 
-        if 'LocalAdmins' in objects.keys():
-            values = objects['Sessions']['values']
-            if 'Collected' in values and values['Collected'] is True:
-                print('LocalAdmins data...not supported yet')
+            if 'PSRemoteUsers' in objects.keys():
+                values = objects['PSRemoteUsers']['values']
+                if 'Collected' in values and values['Collected'] is True:
+                    print('PSRemoteUsers data...not supported yet')
 
-        if 'RemoteDesktopUsers' in objects.keys():
-            values = objects['RemoteDesktopUsers']['values']
-            if 'Collected' in values and values['Collected'] is True:
-                print('RemoteDesktopUsers data...not supported yet')
+            # add new machine to database
+            # m.gen_checksum()
+            self.db_session.add(m)
 
-        if 'DcomUsers' in objects.keys():
-            values = objects['DcomUsers']['values']
-            if 'Collected' in values and values['Collected'] is True:
-                print('DcomUsers data...not supported yet')
+            # create objectid to id lookup entry
+            edgeinfo = EdgeLookup(m.ad_id, objectid, 'machine')
+            self.db_session.add(edgeinfo)
 
-        if 'PSRemoteUsers' in objects.keys():
-            values = objects['PSRemoteUsers']['values']
-            if 'Collected' in values and values['Collected'] is True:
-                print('PSRemoteUsers data...not supported yet')
+            # add aces to global Ace table (these will be turned into edges later)
+            if 'Aces' in arrays.keys():
+                if len(arrays['Aces']) > 0:
+                    self.add_aces(bh_version, m.ad_id, objectid, arrays['Aces']['objects'])
 
-        # add new machine to database
-        # m.gen_checksum()
-        self.db_session.add(m)
+            if bh_version == 3:
+                if 'LocalAdmins' in arrays.keys():
+                    if len(arrays['LocalAdmins']) > 0:
+                        print('Not supported yet', arrays['LocalAdmins']['values'])
 
-        # create objectid to id lookup entry
-        edgeinfo = EdgeLookup(m.ad_id, objectid, 'machine')
-        self.db_session.add(edgeinfo)
+                if 'RemoteDesktopUsers' in arrays.keys():
+                    if len(arrays['RemoteDesktopUsers']) > 0:
+                        print('Not supported yet', arrays['RemoteDesktopUsers']['values'])
 
-        # add aces to global Ace table (these will be turned into edges later)
-        if 'Aces' in arrays.keys():
-            if len(arrays['Aces']) > 0:
-                self.add_aces(bh_version, m.ad_id, objectid, arrays['Aces']['objects'])
+                if 'Sessions' in arrays.keys():
+                    if len(arrays['Sessions']) > 0:
+                        print('Not supported yet', arrays['Sessions']['values'])
 
-        if bh_version == 3:
-            if 'LocalAdmins' in arrays.keys():
-                if len(arrays['LocalAdmins']) > 0:
-                    print('Not supported yet', arrays['LocalAdmins']['values'])
-
-            if 'RemoteDesktopUsers' in arrays.keys():
-                if len(arrays['RemoteDesktopUsers']) > 0:
-                    print('Not supported yet', arrays['RemoteDesktopUsers']['values'])
-
-            if 'Sessions' in arrays.keys():
-                if len(arrays['Sessions']) > 0:
-                    print('Not supported yet', arrays['Sessions']['values'])
-
-        self.db_session.commit()
-        # except Exception as ex:
-        #    print('import_machine_v4', ex)
+            self.db_session.commit()
+        except Exception as ex:
+            print('import_machine_v4', ex)
 
     def import_gpo_v4(self, bh_version, entries):
+        """ Import BloodHound GPO JSON data to database """
         try:
             objects = entries['objects']
             arrays = entries['arrays']
@@ -513,6 +527,7 @@ class Importer:
             print('import_gpo_v4', ex)
 
     def import_ou_v4(self, bh_version, entries):
+        """ Import BloodHound OU JSON data to database """
         try:
             objects = entries['objects']
             arrays = entries['arrays']
@@ -565,7 +580,7 @@ class Importer:
                     for _, link in links.items():
                         link_values = link['values']
                         if bh_version == 4:
-                            if 'ObjectIdentifier' in link_values:  # TODO check to see if ObjectIdentifier is ever needed
+                            if 'ObjectIdentifier' in link_values:  # TODO maybe remove this
                                 gpo_guid = link_values['ObjectIdentifier']
                             elif 'GUID' in link_values:
                                 gpo_guid = link_values['GUID']
@@ -618,6 +633,7 @@ class Importer:
             print('import_ou_v4', ex)
 
     def import_container_v4(self, bh_version, entries):
+        """ Import BloodHound Container JSON data to database """
         try:
             objects = entries['objects']
             arrays = entries['arrays']
@@ -678,9 +694,11 @@ class Importer:
         pass
 
     def insert_session_edges(self):
-        pass
+        """ Convert all rows in Session table into edges in Edge table """
+        pass  # TODO
 
     def insert_spn_edges(self):
+        """ Convert MSSQLSvc userSPNs to edges in Edge table """
         count = self.db_session.query(UserSPN).filter_by(service_class='MSSQLSvc').count()
         iterator = tqdm(range(0, count))
 
@@ -697,13 +715,13 @@ class Importer:
                     edge = Edge(spn.ad_id, src, dst, 'sqladmin')
                     self.db_session.add(edge)
                 else:
-                    # logger.debug('[BHIMPORT2] sqlaldmin add edge cant find machine %s' % spn.computername)
                     pass
             iterator.update(1)
         self.db_session.query(UserSPN).delete()
         self.db_session.commit()
 
     def insert_members_edges(self):
+        """ Convert all rows in Member table into edges in Edge table """
         count = self.db_session.query(Member).count()
         iterator = tqdm(range(0, count))
 
@@ -718,6 +736,7 @@ class Importer:
         self.db_session.commit()
 
     def insert_childobjects_edges(self):
+        """ Convert all rows in ChildObject table into edges in Edge table """
         count = self.db_session.query(ChildObject).count()
         iterator = tqdm(range(0, count))
 
@@ -732,6 +751,7 @@ class Importer:
         self.db_session.commit()
 
     def insert_gplink_edges(self):
+        """ Convert all rows in Gplink table into edges in Edge table """
         count = self.db_session.query(Gplink).count()
         iterator = tqdm(range(0, count))
 
@@ -746,6 +766,7 @@ class Importer:
         self.db_session.commit()
 
     def insert_ace_edges(self):
+        """ Convert all rows in Ace table into edges in Edge table """
         count = self.db_session.query(Ace).count()
         iterator = tqdm(range(0, count))
 
@@ -760,6 +781,7 @@ class Importer:
         self.db_session.commit()
 
     def from_zipfile(self, filepath):
+        """ Given BloodHound zipped data file, unzip all to /tmp """
         with zipfile.ZipFile(filepath, 'r') as myzip:
             for names in myzip.namelist():
                 try:
@@ -769,12 +791,6 @@ class Importer:
                     self.json_files.append(f'/tmp/{names}')
                 except Exception as ex:
                     print('Error', ex)
-
-    def readchunk(self, f):
-        try:
-            return f.read(65535)
-        except Exception as ex:
-            return ''
 
     def run(self):
         self.setup_db()
@@ -791,52 +807,35 @@ class Importer:
                 all_json_files[meta['type']] = (meta, json_file)
                 del data
 
-        print(f'\nImporting Domains')  # {all_json_files["domains"]}')
-        with open(all_json_files['domains'][1], 'r') as f:
-            self.json_parser.json_parser(all_json_files['domains'][0], f)
-
-            # print('pause')
-            # input()
+        if 'domains' in all_json_files:
+            print(f'\nImporting Domains')  # {all_json_files["domains"]}')
+            with open(all_json_files['domains'][1], 'r') as f:
+                self.json_parser.json_parser(all_json_files['domains'][0], f)
 
         if 'groups' in all_json_files:
             print(f'\nImporting Groups')  # {all_json_files["groups"]}')
             with open(all_json_files['groups'][1], 'r') as f:
                 self.json_parser.json_parser(all_json_files['groups'][0], f)
 
-        # print('pause')
-        # input()
-
         if 'users' in all_json_files:
             print(f'\nImporting Users')  # {all_json_files["users"]}')
             with open(all_json_files['users'][1], 'r') as f:
                 self.json_parser.json_parser(all_json_files['users'][0], f)
-
-        # print('pause')
-        # input()
 
         if 'computers' in all_json_files:
             print(f'\nImporting Computers')  # {all_json_files["computers"]}')
             with open(all_json_files['computers'][1], 'r') as f:
                 self.json_parser.json_parser(all_json_files['computers'][0], f)
 
-        # print('pause')
-        # input()
-
         if 'gpos' in all_json_files:
             print(f'\nImporting GPOs')  # {all_json_files["gpos"]}')
             with open(all_json_files['gpos'][1], 'r') as f:
                 self.json_parser.json_parser(all_json_files['gpos'][0], f)
 
-        # print('pause')
-        # input()
-
         if 'ous' in all_json_files:
             print(f'\nImporting OUs')  # {all_json_files["ous"]}')
             with open(all_json_files['ous'][1], 'r') as f:
                 self.json_parser.json_parser(all_json_files['ous'][0], f)
-
-        #print('pause')
-        #input()
 
         if 'containers' in all_json_files:
             print(f'\nImporting Containers')  # {all_json_files["containers"]}')
@@ -846,14 +845,19 @@ class Importer:
         # create edges
         # print('\nCreating edges from Sessions')
         # self.insert_session_edges()
+
         print('\nCreating edges from SPNs')
         self.insert_spn_edges()
+
         print('\nCreating edges from group memberships')
         self.insert_members_edges()
+
         print('\nCreating edges from childobjects')
         self.insert_childobjects_edges()
+
         print('\nCreating edges from gplinks')
         self.insert_gplink_edges()
+
         print('\nCreating edges from aces')
         self.insert_ace_edges()
 
@@ -871,7 +875,7 @@ class JsonParser:
 
     def next_chunk(self):
         """ Get next chunk of file data """
-        return self.bhimporter.readchunk(self.f)
+        return read_file_chunk(self.f)
 
     def get_next_char(self):
         """ Get next character in data buffer (increments current offset) """
@@ -921,19 +925,16 @@ class JsonParser:
 
         char = self.get_current_char()
         while char is not None:
-            #
             if char and char == '{':
                 _ = self.json_object_parser(json_type=JSON_TYPE_TOP_OBJECT)
 
-            # self.offset = self.offset + 1
             char = self.get_next_char()
 
         self.iterator.refresh()
         self.iterator.close()
 
-    def json_object_parser(self, name='', json_type=JSON_TYPE_ENTRY_VALUE):
+    def json_object_parser(self, json_type=JSON_TYPE_ENTRY_VALUE):
         """ Handles the data between '{' and '}' during processing """
-        # print('object parser START...', json_type)
         entries = {}
 
         char = self.get_current_char()
@@ -941,20 +942,12 @@ class JsonParser:
             print('Error bad object', self.offset, self.data[self.offset])
             return
         else:
-            # self.offset = self.offset + 1
             char = self.get_next_char()
-            # while self.offset < self.datalen:
             while char is not None:
-                # if self.data[self.offset] == '}':
                 if char == '}':
-                    # self.offset = self.offset + 1
                     self.get_next_char()
 
-                    if json_type == JSON_TYPE_TOP_NEXT:
-                        # special handling of meta object to get version and type (computer, user, group...etc)
-                        if name == 'meta':
-                            pass
-                    elif json_type == JSON_TYPE_ENTRY:
+                    if json_type == JSON_TYPE_ENTRY:
                         self.iterator.update(1)
                         self.bhimporter.json_handler(self.bh_type, self.bh_version, entries)
                         entries.clear()
@@ -963,12 +956,10 @@ class JsonParser:
                     entries = self.json_entries_parser(['}'], json_type)
                     char = self.get_current_char()
 
-        # print('object parser END...', name)
         return entries
 
     def json_array_parser(self, name='', json_type=JSON_TYPE_ENTRY_VALUE):
         """ Handles the data between '[' and ']' during processing """
-        # print('array parser START...', json_type)
         entries = {}
 
         char = self.get_current_char()
@@ -976,13 +967,9 @@ class JsonParser:
             print('Error bad array', self.data[self.offset])
             return
         else:
-            # self.offset = self.offset + 1
             char = self.get_next_char()
-            # while self.offset < self.datalen:
             while char is not None:
-                # if self.data[self.offset] == ']':
                 if char == ']':
-                    # self.offset = self.offset + 1
                     self.get_next_char()
 
                     # handle completely parsed array
@@ -994,68 +981,54 @@ class JsonParser:
                     entries = self.json_entries_parser([']'], json_type)
                     char = self.get_current_char()
 
-        # print('array parser END...', name, json_type)
         return entries
 
     def json_entries_parser(self, end_chars, json_type=JSON_TYPE_ENTRY_VALUE):
-        """ Generic parser of JSON data objects, arrays, and values """
-        entries = {}
-        entries['objects'] = {}
-        entries['arrays'] = {}
-        entries['values'] = {}
+        """ Generic parser of JSON entries (objects, arrays, and values) """
+        entries = {'objects': {}, 'arrays': {}, 'values': {}}
 
         entry_name = ''
         idx = 0
         char = self.get_current_char()
 
-        # while self.offset < self.datalen:
         while char is not None:
-            # print('testing', self.data[self.offset])
-            # if self.data[self.offset] in end_chars:  # end of object/arrar
             if char in end_chars:
                 break
-            # elif self.data[self.offset] == '"':
-            elif char == '"':
+            elif char == '"':  # start of quoted string
                 temp_str = self.read_json_string()
                 char = self.get_current_char()
-                # if self.data[self.offset] == ':':
                 if char == ':':
                     entry_name = temp_str
-                    # self.offset = self.offset + 1
                     char = self.get_next_char()
                 else:
                     if entry_name == '':
-                        tmp_name = str(self.bhimporter.rando())
+                        tmp_name = str(rando())
                     else:
                         tmp_name = entry_name
                     entries['values'][tmp_name] = temp_str
-            # elif self.data[self.offset] == '{':  # new object
-            elif char == '{':
+            elif char == '{':  # start of JSON object
                 idx = idx + 1
-                obj_entries = self.json_object_parser(name=entry_name, json_type=json_type+1)
+                obj_entries = self.json_object_parser(json_type=json_type+1)
                 if entry_name == '':
-                    tmp_name = str(self.bhimporter.rando())
+                    tmp_name = str(rando())
                 else:
                     tmp_name = entry_name
                 entries['objects'][tmp_name] = obj_entries
                 char = self.get_current_char()
-            # elif self.data[self.offset] == '[':  # new array
-            elif char == '[':
+            elif char == '[':  # start of JSON array
                 arr_entries = self.json_array_parser(name=entry_name, json_type=json_type+1)
                 if entry_name == '':
-                    tmp_name = str(self.bhimporter.rando())
+                    tmp_name = str(rando())
                 else:
                     tmp_name = entry_name
                 entries['arrays'][tmp_name] = arr_entries
                 char = self.get_current_char()
-            # elif self.data[self.offset] == ',':  # move to next entry
-            elif char == ',':
-                # self.offset = self.offset + 1
+            elif char == ',':  # end of json entry
                 char = self.get_next_char()
             else:  # new key/value entry
                 entry_value = self.read_json_value(end_chars)
                 if entry_name == '':
-                    tmp_name = str(self.bhimporter.rando())
+                    tmp_name = str(rando())
                 else:
                     tmp_name = entry_name
                 entries['values'][tmp_name] = entry_value
@@ -1069,20 +1042,15 @@ class JsonParser:
         ret_val = None
 
         char = self.get_current_char()
-        # while self.offset < self.datalen:
         while char is not None:
-            # if self.data[self.offset] == ',' or self.data[self.offset] in end_chars:
             if char == ',' or char in end_chars:
                 break
-            # elif self.data[self.offset] == '"':
             elif char == '"':
                 is_str = True
                 tmp_val = self.read_json_string()
                 char = self.get_current_char()
             else:
-                # tmp_val = tmp_val + self.data[self.offset]
                 tmp_val = tmp_val + char
-                # self.offset = self.offset + 1
                 char = self.get_next_char()
 
         if len(tmp_val) > 0 and is_str is False:
@@ -1098,46 +1066,32 @@ class JsonParser:
             except Exception as ex:
                 ret_val = tmp_val
                 print(f'Error: {ex}', self.offset, self.data[self.offset], tmp_val)
-                # print('!!!:', self.data[self.offset-120:self.offset+120])
-                input()
         elif len(tmp_val) > 0 and is_str is True:
             ret_val = tmp_val
-        else:
-            print("WTF")
-            input()
-        # print('Read Value', ret_val)
+        # else:
+        #    print("WTF")
+        #    input()
+
         return ret_val
 
     def read_json_string(self):
         ret_str = ''
 
         char = self.get_current_char()
-        # if self.data[self.offset] != '"':
         if char != '"':
             print('Bad string value', self.data[self.offset])
         else:
-            # self.offset = self.offset + 1
             char = self.get_next_char()
-            # while self.offset < self.datalen:
             while char is not None:
-                # if self.data[self.offset] == '\\':
                 if char == '\\':
-                    # self.offset = self.offset + 1
                     char = self.get_next_char()
-                    # ret_str = ret_str + self.data[self.offset]
                     ret_str = ret_str + char
-                    # self.offset = self.offset + 1
                     char = self.get_next_char()
-                # elif self.data[self.offset] == '"':
                 elif char == '"':
-                    # self.offset = self.offset + 1
                     self.get_next_char()
                     break
                 else:
-                    # ret_str = ret_str + self.data[self.offset]
                     ret_str = ret_str + char
-                    # self.offset = self.offset + 1
                     char = self.get_next_char()
 
-        # print('Read String', ret_str)
         return ret_str

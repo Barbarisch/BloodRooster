@@ -84,7 +84,7 @@ class BloodRoosterWebApp:
                     for t in res:
                         if len(matches) <= max_return:
                             matches.append(t.name)
-                    limit = limit - len(matches)
+                    # limit = limit - len(matches)
 
         elif autocomplete_type == 'domain':
             res = db.session.query(Domain).filter(Domain.name.startswith(text.upper())).limit(limit)
