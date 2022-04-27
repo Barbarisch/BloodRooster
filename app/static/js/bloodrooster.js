@@ -197,6 +197,9 @@ function draw_inputs() {
         case "dcsync_objects":
             document.getElementById("domain_form").style.display = "block";
             break;
+        case "surrounding_nodes":
+            document.getElementById("src_form").style.display = "block";
+            break;
         default:
             break;
     }
@@ -353,6 +356,11 @@ function create_edge_list() {
     ele = document.getElementById("sqladmin_check").checked
     if (ele === true) {
         edge_list.push('sqladmin');
+    }
+
+    ele = document.getElementById("childobject_check").checked
+    if (ele === true) {
+        edge_list.push('childobject');
     }
 
     return edge_list

@@ -208,6 +208,7 @@
                     <option value="dcsync_objects">Get all objects that can DCSYNC</option>
                     <option value="lapsusers">Get all users that can read LAPS passwords</option>
                     <option value="unconstrained_delegation">Get all computers with unconstrained delegation</option>
+                    <option value="surrounding_nodes">Get surrounding nodes</option>
                 </select><br><br>
                 <form autocomplete="off" id="domain_form" style="display: none;">
                     <label for="domain">Domain</label><br>
@@ -294,6 +295,10 @@
                         <input type="checkbox" id="sqladmin_check" checked>
                         <span class="slider round"></span>
                     </label>sqladmin<br>
+                    <label class="switch">
+                        <input type="checkbox" id="childobject_check" checked>
+                        <span class="slider round"></span>
+                    </label>childobject<br>
                 </div>
                 <button id="showadvancedbutton" onclick="showAdvanced()">Graph Advanced Settings →</button>
                 <div id="config" style="display: none;"></div>
