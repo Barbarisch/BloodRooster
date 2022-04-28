@@ -205,29 +205,42 @@ function draw_inputs() {
     }
 }
 
-// toggle showing the vis.js config options
-function showAdvanced() {
-    var x = document.getElementById("config");
-    var y = document.getElementById("showadvancedbutton");
-    if (x.style.display === "none") {
-        x.style.display = "block";
-        y.innerHTML = "Graph Advanced Settings ↓";
-    } else {
-        x.style.display = "none";
-        y.innerHTML = "Graph Advanced Settings →";
-    }
-}
-
 // toggle showing the egde toggle options
 function showEdgeToggle() {
-    var x = document.getElementById("edgetoggle");
-    var y = document.getElementById("edgetogglebutton");
+    var x = document.getElementById("edge_toggle");
+    var y = document.getElementById("edge_toggle_button");
     if (x.style.display === "none") {
         x.style.display = "block";
         y.innerHTML = "Edge toggle ↓";
     } else {
         x.style.display = "none";
         y.innerHTML = "Edge toggle →";
+    }
+}
+
+// toggle showing the vis.js config options
+function showQueryAdvanced() {
+    var x = document.getElementById("query_options");
+    var y = document.getElementById("query_advanced_toggle_button");
+    if (x.style.display === "none") {
+        x.style.display = "block";
+        y.innerHTML = "Query Advanced Settings ↓";
+    } else {
+        x.style.display = "none";
+        y.innerHTML = "Query Advanced Settings →";
+    }
+}
+
+// toggle showing the vis.js config options
+function showGraphAdvanced() {
+    var x = document.getElementById("config");
+    var y = document.getElementById("graph_advanced_toggle_button");
+    if (x.style.display === "none") {
+        x.style.display = "block";
+        y.innerHTML = "Graph Advanced Settings ↓";
+    } else {
+        x.style.display = "none";
+        y.innerHTML = "Graph Advanced Settings →";
     }
 }
 
@@ -239,7 +252,6 @@ function showLoading() {
 
 // submit_button handler
 function submit_clicked() {
-    //e.preventDefault();
     showLoading();
 
     // package all fields into json object
@@ -248,6 +260,8 @@ function submit_clicked() {
         'src': $('#src').val(),  // source name
         'dst': $('#dst').val(),  // destination name
         'edges': create_edge_list(),  // list of enabled edges
+        'max_nodes': $('#node_max').val(),  // max nodes to return
+        'max_depth': $('#recurse_depth').val(),  // max recursion depth in searches
         'submit_type': $('#submit_type').val()  // function type
     };
 
@@ -361,6 +375,16 @@ function create_edge_list() {
     ele = document.getElementById("childobject_check").checked
     if (ele === true) {
         edge_list.push('childobject');
+    }
+
+    ele = document.getElementById("ReadLAPSPassword_check").checked
+    if (ele === true) {
+        edge_list.push('ReadLAPSPassword');
+    }
+
+    ele = document.getElementById("gplink_check").checked
+    if (ele === true) {
+        edge_list.push('gplink');
     }
 
     return edge_list

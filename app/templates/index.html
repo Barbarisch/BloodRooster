@@ -229,8 +229,9 @@
                     </div>
                 </form>
                 <input id="submit_button" type="submit" value="Submit" onclick="submit_clicked()"><br><br>
-                <button id="edgetogglebutton" onclick="showEdgeToggle()">Edge toggle →</button><br><br>
-                <div id="edgetoggle" style="display: none;">
+                <button id="edge_toggle_button" onclick="showEdgeToggle()">Edge toggle →</button>
+                <br><br>
+                <div id="edge_toggle" style="display: none;">
                     <label class="switch">
                         <input type="checkbox" id="member_check" checked>
                         <span class="slider round"></span>
@@ -299,8 +300,24 @@
                         <input type="checkbox" id="childobject_check" checked>
                         <span class="slider round"></span>
                     </label>childobject<br>
+                    <label class="switch">
+                        <input type="checkbox" id="ReadLAPSPassword_check" checked>
+                        <span class="slider round"></span>
+                    </label>ReadLAPSPassword<br>
+                    <label class="switch">
+                        <input type="checkbox" id="gplink_check" checked>
+                        <span class="slider round"></span>
+                    </label>gplink<br>
                 </div>
-                <button id="showadvancedbutton" onclick="showAdvanced()">Graph Advanced Settings →</button>
+                <button id="query_advanced_toggle_button" onclick="showQueryAdvanced()">Query Advanced Settings →</button>
+                <br><br>
+                <div id="query_options" style="display: none;">
+                    <label for="node_max">Max nodes</label><br>
+                    <input type="text" id="node_max" name="node_max"><br><br>
+                    <label for="recurse_depth">Recursive depth</label><br>
+                    <input type="text" id="recurse_depth" name="recurse_depth"><br><br>
+                </div>
+                <button id="graph_advanced_toggle_button" onclick="showGraphAdvanced()">Graph Advanced Settings →</button>
                 <div id="config" style="display: none;"></div>
             </div>
         </div>

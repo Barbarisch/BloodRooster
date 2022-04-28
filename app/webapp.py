@@ -99,10 +99,15 @@ class BloodRoosterWebApp:
     def graph_update(self, json_data):
         final = {'nodes': {}, 'edges': {}}
 
-        max_depth = 99
-        if 'max_depth' in json_data:
-            max_depth = json_data['max_depth']
+        max_depth = 10
+        if 'max_depth' in json_data and json_data['max_depth'] is not None and len(json_data['max_depth']) > 0:
+            max_depth = int(json_data['max_depth'])
             print('testing', type(max_depth), max_depth)
+
+        max_nodes = 100
+        if 'max_nodes' in json_data and json_data['max_nodes'] is not None and len(json_data['max_nodes']) > 0:
+            max_nodes = int(json_data['max_nodes'])
+            print('testing', type(max_nodes), max_nodes)
 
         edge_list = []
         if 'edges' in json_data:
@@ -113,11 +118,9 @@ class BloodRoosterWebApp:
         self.edges = []
         self.ncache = []
         self.ecache = []
-        print('AHHHH', json_data['submit_type'])
 
         # take action based on submit_type
         if json_data['submit_type'] == 'shortest_path_dst':
-            # oid = 'S-1-5-21-3937601378-3721788405-2067139823-512'
             oid = self.name_to_sid(json_data['dst'])
             self.path_to_dst(oid, max_depth=max_depth, edge_list=edge_list)
         elif json_data['submit_type'] == 'shortest_path_src_dst':
@@ -131,12 +134,12 @@ class BloodRoosterWebApp:
         elif json_data['submit_type'] == 'dcsync_objects':
             self.dcsync_objects()
         elif json_data['submit_type'] == 'lapsusers':
-            self.laps_users()
+            self.laps_users(max_nodes)
         elif json_data['submit_type'] == 'unconstrained_delegation':
             self.unconstrained_delegation()
         elif json_data['submit_type'] == 'surrounding_nodes':
             src = self.name_to_sid(json_data['src'])
-            self.surrounding_nodes(src, max_depth=1, edge_list=edge_list)
+            self.surrounding_nodes(src, max_depth=1, max_nodes=max_nodes, edge_list=edge_list)
         else:
             return final
 
@@ -179,7 +182,7 @@ class BloodRoosterWebApp:
                                 idx = idx + 1
                                 self.add_node(res2.oid, res.objectSid, edge.label, 1, True)
 
-    def laps_users(self):
+    def laps_users(self, max_nodes=100):
         edges = db.session.query(Edge).filter_by(label='ReadLAPSPassword')
         if edges:
             self.nodes.append(make_node('lapsusers', 'LAPS Users', 'user_list', 0))
@@ -195,19 +198,22 @@ class BloodRoosterWebApp:
                 self.edges.append(make_edge(idx, src, dst, 'ReadLAPSPassword'))
                 idx = idx + 1
 
+                if len(self.nodes) > max_nodes:
+                    break
+
     def unconstrained_delegation(self):
         res = db.session.query(Computer).filter(Computer.UAC_TRUSTED_FOR_DELEGATION)
         if res:
             self.nodes.append(make_node('unconstrained_delegation', 'Unconstrained Delegation', 'computer_list', 0))
 
-    def surrounding_nodes(self, src, max_depth=1, edge_list=None):
-        self.add_node_recursive2([src], max_depth=max_depth, edge_list=edge_list)
+    def surrounding_nodes(self, src, max_depth=1, max_nodes=100, edge_list=None):
+        self.add_node_recursive([src], 'forward', max_depth=max_depth, max_nodes=max_nodes, edge_list=edge_list)
 
-    def path_to_dst(self, oid, max_depth=5, edge_list=None):
-        self.add_node_recursive([oid], max_depth=max_depth, edge_list=edge_list)
+    def path_to_dst(self, oid, max_depth=5, max_nodes=100, edge_list=None):
+        self.add_node_recursive([oid], max_depth=max_depth, max_nodes=max_nodes, edge_list=edge_list)
 
-    def path_src_to_dst(self, src, dst, max_depth=99, edge_list=None):
-        self.add_node_recursive([dst], max_depth=max_depth, edge_list=edge_list)
+    def path_src_to_dst(self, src, dst, max_depth=10, max_nodes=100, edge_list=None):
+        self.add_node_recursive([dst], max_depth=max_depth, max_nodes=max_nodes, edge_list=edge_list)
 
         graph = {}
         for edge in self.edges:
@@ -220,7 +226,6 @@ class BloodRoosterWebApp:
 
             graph[a].append(b)
             graph[b].append(a)
-        # print('TESTING', graph)
 
         explored = []
 
@@ -348,10 +353,10 @@ class BloodRoosterWebApp:
                         self.add_node(res2.oid, parent_oid, edge_label, 1, True)
                         self.edges.append(make_edge(res2.oid, res2.oid, parent_oid, edge_label))
 
-    def add_node_recursive(self, sids, depth=0, max_depth=5, edge_list=None):
+    def add_node_recursive(self, sids, direction='back', depth=0, max_depth=5, max_nodes=100, edge_list=None):
         id_sid_map = {}
 
-        if depth > max_depth:
+        if depth > max_depth or len(self.nodes) > max_nodes:
             return
 
         for sid in sids:
@@ -381,94 +386,60 @@ class BloodRoosterWebApp:
                         print('UNKNOWN!@!!!!!!!', start.otype)
                     id_sid_map[start.id] = start.oid
 
-        if depth > max_depth:
+        if depth > max_depth or len(self.nodes) > max_nodes:
             return
 
         for node_id, node_sid in id_sid_map.items():
-            self.get_edges(node_id, node_sid, depth, max_depth=max_depth, edge_list=edge_list)
+            if direction == 'back':
+                self.get_edges_back(node_id, node_sid, depth, max_depth=max_depth, max_nodes=max_nodes, edge_list=edge_list)
+            elif direction == 'forward':
+                self.get_edges_forward(node_id, node_sid, depth, max_depth=max_depth, max_nodes=max_nodes, edge_list=edge_list)
 
-    def add_node_recursive2(self, sids, depth=0, max_depth=5, edge_list=None):
-        id_sid_map = {}
+    def get_edges_back(self, edgeid, sid, depth=0, max_depth=5, max_nodes=100, edge_list=None):
+        if len(self.nodes) < max_nodes:
+            edges_query = db.session.query(Edge).filter_by(dst=edgeid).limit(max_nodes-len(self.nodes)).all()
 
-        if depth > max_depth:
-            return
+            new_nodes = []
 
-        for sid in sids:
-            start = db.session.query(EdgeLookup).filter_by(oid=sid).first()  # get id and typefrom sid
-            if start:
-                if start.oid not in self.ncache:
-                    self.ncache.append(start.oid)
-                    if start.otype == 'group':
-                        new_node = db.session.query(Group).filter_by(objectSid=start.oid).first()
-                        self.nodes.append(make_node(new_node.objectSid, new_node.name, 'group', depth))
-                    elif start.otype == 'user':
-                        new_node = db.session.query(User).filter_by(objectSid=start.oid).first()
-                        self.nodes.append(make_node(new_node.objectSid, new_node.name, 'user', depth))
-                    elif start.otype == 'machine':
-                        new_node = db.session.query(Computer).filter_by(objectSid=start.oid).first()
-                        self.nodes.append(make_node(new_node.objectSid, new_node.name, 'computer', depth))
-                    elif start.otype == 'gpo':
-                        new_node = db.session.query(GPO).filter_by(objectGUID=start.oid).first()
-                        self.nodes.append(make_node(new_node.objectGUID, new_node.name, 'gpo', depth))
-                    elif start.otype == 'ou':
-                        new_node = db.session.query(Ou).filter_by(objectGUID=start.oid).first()
-                        self.nodes.append(make_node(new_node.objectGUID, new_node.name, 'ou', depth))
-                    elif start.otype == 'container':
-                        new_node = db.session.query(Container).filter_by(objectGUID=start.oid).first()
-                        self.nodes.append(make_node(new_node.objectGUID, new_node.name, 'container', depth))
-                    else:
-                        print('UNKNOWN!@!!!!!!!', start.otype)
-                    id_sid_map[start.id] = start.oid
+            idx = 0
+            for e in edges_query:  # for all edges
+                if edge_list and e.label in edge_list:
+                    res = db.session.query(EdgeLookup).filter_by(id=e.src).first()  # get oid and otype from edge src
 
-        if depth > max_depth:
-            return
+                    if (res.oid, sid, e.label) not in self.ecache and res.oid != sid and res.oid not in self.ncache:
+                        self.ecache.append((res.oid, sid, e.label))
+                        self.edges.append(make_edge(str(idx), res.oid, sid, e.label))
+                        idx = idx + 1
 
-        for node_id, node_sid in id_sid_map.items():
-            self.get_edges2(node_id, node_sid, depth, max_depth=max_depth, edge_list=edge_list)
+                        if res.oid not in self.ncache:
+                            new_nodes.append(res.oid)
 
-    def get_edges(self, edgeid, sid, depth=0, max_depth=5, edge_list=None):
-        edges_query = db.session.query(Edge).filter_by(dst=edgeid)  # get edges from id
+            if len(new_nodes) > 0:
+                self.add_node_recursive(new_nodes, 'back', depth+1, max_depth=max_depth, max_nodes=max_nodes, edge_list=edge_list)
 
-        new_nodes = []
+    def get_edges_forward(self, edgeid, sid, depth=0, max_depth=5, max_nodes=100, edge_list=None):
+        if len(self.nodes) < max_nodes:
+            edges_query = db.session.query(Edge).filter_by(src=edgeid).limit(max_nodes-len(self.nodes)).all()
 
-        idx = 0
-        for e in edges_query:  # for all edges
-            if edge_list and e.label in edge_list:
-                res = db.session.query(EdgeLookup).filter_by(id=e.src).first()  # get oid and otype from edge src
+            new_nodes = []
 
-                if (res.oid, sid, e.label) not in self.ecache and res.oid != sid and res.oid not in self.ncache:
-                    self.ecache.append((res.oid, sid, e.label))
-                    self.edges.append(make_edge(str(idx), res.oid, sid, e.label))
-                    idx = idx + 1
+            idx = 0
+            for e in edges_query:  # for all edges
+                if edge_list and e.label in edge_list:
+                    res = db.session.query(EdgeLookup).filter_by(id=e.dst).first()  # get oid and otype from edge dst
 
-                    if res.oid not in self.ncache:
-                        new_nodes.append(res.oid)
+                    if (sid, res.oid, e.label) not in self.ecache and res.oid != sid and res.oid not in self.ncache:
+                        self.ecache.append((sid, res.oid, e.label))
+                        self.edges.append(make_edge(str(idx), sid, res.oid, e.label))
+                        idx = idx + 1
 
-        if len(new_nodes) > 0:
-            self.add_node_recursive(new_nodes, depth+1, max_depth=max_depth, edge_list=edge_list)
+                        if res.oid not in self.ncache:
+                            new_nodes.append(res.oid)
+                else:
+                    print('just some testing', e.label)
 
-    def get_edges2(self, edgeid, sid, depth=0, max_depth=5, edge_list=None):
-        edges_query = db.session.query(Edge).filter_by(src=edgeid)  # get edges from id
-
-        new_nodes = []
-
-        idx = 0
-        for e in edges_query:  # for all edges
-            if edge_list and e.label in edge_list:
-                res = db.session.query(EdgeLookup).filter_by(id=e.dst).first()  # get oid and otype from edge dst
-
-                if (sid, res.oid, e.label) not in self.ecache and res.oid != sid and res.oid not in self.ncache:
-                    self.ecache.append((sid, res.oid, e.label))
-                    self.edges.append(make_edge(str(idx), sid, res.oid, e.label))
-                    idx = idx + 1
-
-                    if res.oid not in self.ncache:
-                        new_nodes.append(res.oid)
-            else:
-                print('just some testing', e.label)
-
-        if len(new_nodes) > 0:
-            self.add_node_recursive2(new_nodes, depth+1, max_depth=max_depth, edge_list=edge_list)
+            if len(new_nodes) > 0:
+                self.add_node_recursive(new_nodes, 'forward', depth+1, max_depth=max_depth, max_nodes=max_nodes, edge_list=edge_list)
 
     def get_extended_info(self, nodeid):
         ret = ''
