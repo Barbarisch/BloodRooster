@@ -93,6 +93,13 @@ class BloodRoosterWebApp:
                     if len(matches) <= max_return:
                         matches.append(t.name)
 
+        elif autocomplete_type == 'group':
+            res = db.session.query(Group).filter(Group.name.startswith(text.upper())).limit(limit)
+            if res:
+                for t in res:
+                    if len(matches) <= max_return:
+                        matches.append(t.name)
+
         print('returning matches', matches)
         return json.dumps(matches)
 
@@ -119,9 +126,14 @@ class BloodRoosterWebApp:
         self.ncache = []
         self.ecache = []
 
+        print('GRAPHA updatre!!!!', json_data)
+
         # take action based on submit_type
         if json_data['submit_type'] == 'shortest_path_dst':
             oid = self.name_to_sid(json_data['dst'])
+            self.path_to_dst(oid, max_depth=max_depth, edge_list=edge_list)
+        elif json_data['submit_type'] == 'shortest_path_src':
+            oid = self.name_to_sid(json_data['src'])
             self.path_to_dst(oid, max_depth=max_depth, edge_list=edge_list)
         elif json_data['submit_type'] == 'shortest_path_src_dst':
             src = self.name_to_sid(json_data['src'])
@@ -140,6 +152,11 @@ class BloodRoosterWebApp:
         elif json_data['submit_type'] == 'surrounding_nodes':
             src = self.name_to_sid(json_data['src'])
             self.surrounding_nodes(src, max_depth=1, max_nodes=max_nodes, edge_list=edge_list)
+        elif json_data['submit_type'] == 'expand':
+            self.surrounding_nodes(json_data['src'], max_depth=1, max_nodes=max_nodes, edge_list=edge_list)
+        elif json_data['submit_type'] == 'get_members':
+            group_sid = self.name_to_sid(json_data['group'])
+            self.get_members(group_sid)
         else:
             return final
 
@@ -154,6 +171,20 @@ class BloodRoosterWebApp:
             idx = idx + 1
 
         return json.dumps(final)
+
+    def get_members(self, sid):
+        self.add_node2(sid, 'group')
+        res = db.session.query(EdgeLookup).filter_by(oid=sid).first()
+        if res:
+            member_edges = db.session.query(Edge).filter_by(dst=res.id, label='member')
+            if member_edges:
+                idx = 0
+                for member_edge in member_edges:
+                    res2 = db.session.query(EdgeLookup).filter_by(id=member_edge.src).first()
+                    if res2:
+                        self.add_node2(res2.oid, res2.otype)
+                        self.edges.append(make_edge(idx, sid, res2.oid, 'member'))
+                    idx = idx + 1
 
     def kerberoastable_users(self):
         res = db.session.query(User).filter(func.length(User.servicePrincipalName) > 0)
@@ -207,6 +238,7 @@ class BloodRoosterWebApp:
             self.nodes.append(make_node('unconstrained_delegation', 'Unconstrained Delegation', 'computer_list', 0))
 
     def surrounding_nodes(self, src, max_depth=1, max_nodes=100, edge_list=None):
+        print('SUROUNDING NOEDS', src)
         self.add_node_recursive([src], 'forward', max_depth=max_depth, max_nodes=max_nodes, edge_list=edge_list)
 
     def path_to_dst(self, oid, max_depth=5, max_nodes=100, edge_list=None):

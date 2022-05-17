@@ -193,7 +193,7 @@
         </style>
     </head>
 
-    <body onload="draw();">
+    <body onload="new_draw();">
 
         <h2>BloodRooster</h2>
         <div style="width: 100%">
@@ -209,6 +209,7 @@
                     <option value="lapsusers">Get all users that can read LAPS passwords</option>
                     <option value="unconstrained_delegation">Get all computers with unconstrained delegation</option>
                     <option value="surrounding_nodes">Get surrounding nodes</option>
+                    <option value="get_members">Get Members</option>
                 </select><br><br>
                 <form autocomplete="off" id="domain_form" style="display: none;">
                     <label for="domain">Domain</label><br>
@@ -226,6 +227,12 @@
                     <label for="dst">Destination</label><br>
                     <div class="autocomplete">
                         <input type="text" id="dst" name="dst"><br><br>
+                    </div>
+                </form>
+                <form autocomplete="off" id="group_form" style="display: none;">
+                    <label for="domain">Group</label><br>
+                    <div class="autocomplete">
+                        <input type="text" id="group" name="group"><br><br>
                     </div>
                 </form>
                 <input id="submit_button" type="submit" value="Submit" onclick="submit_clicked()"><br><br>
@@ -323,7 +330,7 @@
         </div>
         <div id="extended_info"></div>
         <ul class='custom-menu'>
-          <li data-action="info">Extended Info</li>
+          <li data-action="expand">Expand nodes</li>
         </ul>
         <script src="{{ url_for('static', filename='js/bloodrooster.js') }}"></script>
         <script>
@@ -350,6 +357,7 @@
             autocomplete(document.getElementById("domain"), "domain");
             autocomplete(document.getElementById("src"), "all");
             autocomplete(document.getElementById("dst"), "all");
+            autocomplete(document.getElementById("group"), "group");
         </script>
     </body>
 </html>

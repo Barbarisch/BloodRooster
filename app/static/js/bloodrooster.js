@@ -8,8 +8,8 @@ var network = null;
 
 // draw a vis.js network given json formatted string containing nodes and edges
 function draw(jsonstr='') {
-    nodes = [];
-    edges = [];
+    //nodes = [];
+    //edges = [];
 
     node_font = { size: 12, color: "white", face: "arial" }
     edge_font = { size: 12, color: "white", face: "arial" }
@@ -27,7 +27,7 @@ function draw(jsonstr='') {
                 label = value.name;
                 group = value.group;
                 image = getImagePathForNode(value.type);
-                nodes.push({
+                var new_node = {
                     id: id,
                     label: label,
                     title: id,
@@ -35,7 +35,11 @@ function draw(jsonstr='') {
                     font: node_font,
                     image: image,
                     shape: "image"
-                });
+                };
+                const index = nodes.findIndex(object => object.id === new_node.id)
+                if (index === -1) {
+                    nodes.push(new_node);
+                }
             });
 
             // translate edges json into vis compatible format
@@ -126,6 +130,23 @@ function draw(jsonstr='') {
     });
 }
 
+function update_draw(jsonstr='') {
+    if (nodes == null) {
+        nodes = [];
+    }
+    if (edges === null) {
+        edges = [];
+    }
+    draw(jsonstr);
+}
+
+function new_draw(jsonstr='') {
+    nodes = [];
+    edges = [];
+
+    draw(jsonstr);
+}
+
 function getImagePathForNode(nodetype='') {
     var computer_path = "static/images/computer.png";
     var user_path = "static/images/user.png";
@@ -182,6 +203,7 @@ function draw_inputs() {
     document.getElementById("domain_form").style.display = "none";
     document.getElementById("src_form").style.display = "none";
     document.getElementById("dst_form").style.display = "none";
+    document.getElementById("group_form").style.display = "none";
 
     switch(submit_type) {
         case "shortest_path_src":
@@ -199,6 +221,9 @@ function draw_inputs() {
             break;
         case "surrounding_nodes":
             document.getElementById("src_form").style.display = "block";
+            break;
+        case "get_members":
+            document.getElementById("group_form").style.display = "block";
             break;
         default:
             break;
@@ -259,6 +284,7 @@ function submit_clicked() {
         'domain': $('#domain').val(),  // domain name
         'src': $('#src').val(),  // source name
         'dst': $('#dst').val(),  // destination name
+        'group': $('#group').val(), // group field
         'edges': create_edge_list(),  // list of enabled edges
         'max_nodes': $('#node_max').val(),  // max nodes to return
         'max_depth': $('#recurse_depth').val(),  // max recursion depth in searches
@@ -273,7 +299,7 @@ function submit_clicked() {
         processData: false,
         contentType: "application/json; charset=UTF-8",
         success:function(text) {
-            draw(text);  // redraw the network with new data
+            new_draw(text);  // redraw the network with new data
         }
     });
 }
@@ -281,7 +307,32 @@ function submit_clicked() {
 // custom context menu item click handler
 $(".custom-menu li").click(function() {
     switch($(this).attr("data-action")) {
-        case "info":
+        case "expand":
+            // package all fields into json object
+            var data = {
+                'domain': $('#domain').val(),  // domain name
+                'src': network.getSelectedNodes()[0],  // source name
+                'dst': $('#dst').val(),  // destination name
+                'edges': create_edge_list(),  // list of enabled edges
+                'max_nodes': $('#node_max').val(),  // max nodes to return
+                'max_depth': $('#recurse_depth').val(),  // max recursion depth in searches
+                'submit_type': "expand"  // function type
+            };
+
+            console.log('what')
+            console.log(data['src'])
+
+            // ajax past to /graph_update to request new graph data
+            $.ajax({
+                type:'POST',
+                url:'/graph_update',
+                data: JSON.stringify(data),
+                processData: false,
+                contentType: "application/json; charset=UTF-8",
+                success:function(text) {
+                    update_draw(text);  // redraw the network with new data
+                }
+            });
             break;
     }
     // Hide it AFTER the action was triggered
