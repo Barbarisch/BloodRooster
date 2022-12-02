@@ -780,13 +780,13 @@ class Importer:
         self.db_session.query(Ace).delete()
         self.db_session.commit()
 
-    def from_zipfile(self, filepath):
+    def from_zipfile(self, filepath, pwd=b''):
         """ Given BloodHound zipped data file, unzip all to /tmp """
         with zipfile.ZipFile(filepath, 'r') as myzip:
             for names in myzip.namelist():
                 try:
                     sys.stdout.write(f'Unzipping {names} to /tmp/{names}...')
-                    myzip.extract(names, f'/tmp/')
+                    myzip.extract(names, '/tmp/', pwd)
                     sys.stdout.write(f'done\n')
                     self.json_files.append(f'/tmp/{names}')
                 except Exception as ex:
